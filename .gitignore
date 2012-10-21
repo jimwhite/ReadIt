@@ -2,5 +2,5 @@ out
 index
 index_kb
 .DS_Store
-.idea/workspace.xml
-
+PackageIndexer/.idea/workspace.xml
+PackageExtractor/.idea/workspace.xml
