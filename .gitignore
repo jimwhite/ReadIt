@@ -1,6 +1,5 @@
-out
-index
-index_kb
 .DS_Store
-PackageIndexer/.idea/workspace.xml
-PackageExtractor/.idea/workspace.xml
+/PackageIndexer/.idea/workspace.xml
+/PackageExtractor/out
+/PackageExtractor/.idea/workspace.xml
+/PackageIndexer/out
