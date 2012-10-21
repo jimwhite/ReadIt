@@ -1,0 +1,17 @@
+<component name="libraryTable">
+  <library name="lib">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/jetty-util-6.1.26.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-simple-1.6.4-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-api-1.6.4-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-api-1.6.4.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-simple-1.6.4.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/json-20090211.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jetty-6.1.26.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/servlet-api-2.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/lucene-core-3.5.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
