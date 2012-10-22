@@ -73,7 +73,7 @@ indexWriter = open_index_writer()
 package_count = 0
 file_count = 0
 
-packages_dir.eachFile { package_dir ->
+packages_dir.eachFileMatch(~"^a[ab].*") { package_dir ->
     if (package_dir.isDirectory()) {
 //        println package_dir
         def info = read_package_info_fields(package_dir)
@@ -114,7 +114,7 @@ IndexWriter open_index_writer()
     new IndexWriter(indexDirectory, new IndexWriterConfig(Version.LUCENE_CURRENT, new StandardAnalyzer(Version.LUCENE_CURRENT)))
 }
 
-def void index_package(Map info, package_dir)
+def void index_package(Map info, File package_dir)
 {
     // name
     // spec
@@ -135,9 +135,19 @@ def void index_package(Map info, package_dir)
     packageNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
     package_doc.add(packageNameField)
 
-    def specField = new Field("package.spec", info.spec, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    def specField = new Field("package.spec", new File(info.RPM_SPEC_DIR, info.spec).absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
     specField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
     package_doc.add(specField)
+
+    def expandedSpecFile = new File(package_dir, "package.spec")
+
+    def expandedSpecField = new Field("package.spec_expanded", expandedSpecFile.absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    expandedSpecField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+    package_doc.add(expandedSpecField)
+
+    def specContentsField = new Field("contents", expandedSpecFile.text, Field.Store.NO, Field.Index.ANALYZED)
+    specContentsField.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+    package_doc.add(specContentsField)
 
     String build_dir_name = info.build_dir
 
@@ -172,50 +182,56 @@ def void index_package(Map info, package_dir)
             file_mime_type = file_mime_type.substring(0, file_mime_type.indexOf(';'))
         }
 
-        def build_file_path = file_path_and_type.substring(0, file_path_and_type.indexOf(0))
+        if (file_mime_type != 'inode/directory') {
+            def build_file_path = file_path_and_type.substring(0, file_path_and_type.indexOf(0))
 
-        try {
-            def build_file = new File(package_dir, build_file_path)
+            try {
+                def build_file = new File(package_dir, build_file_path)
 
-            build_file_path = build_file_path.substring(build_dir_name.length() + 1)
+//            // Strip off "BUILD/" subdir prefix. We've added it back on above for the package.build_files_path field.
+//            build_file_path = build_file_path.substring(build_dir_name.length() + 1)
+                def build_file_path_prefix = build_file.parentFile.absolutePath.substring(build_files_dir.absolutePath.length() + File.separator.length())
 
-            if (file_mime_type.startsWith("text") && build_file.exists()) {
                 def file_name = build_file.name
-                def extension = file_name.contains(' ') ? file_name.toLowerCase().substring(file_name.lastIndexOf(' ') + 1) : ".none."
+                def extension = file_name.contains('.') ? file_name.toLowerCase().substring(file_name.lastIndexOf('.') + 1) : ""
 
                 if ((file_mime_type == "text/html") && (extension in ["c", "h", "cpp", "hpp", "cxx", "hxx", "py", "java"])) {
                     file_mime_type = "text/plain"
                 }
 
-                def file_size = build_file.size()
+                def file_size = build_file.exists() ? build_file.size() : -1
 
                 def build_file_doc = new Document()
 
-                package_doc.add(fileTypeField)
-                package_doc.add(releaseField)
-                package_doc.add(packageNameField)
+                build_file_doc.add(fileTypeField)
+                build_file_doc.add(releaseField)
+                build_file_doc.add(packageNameField)
 
-                def filePathField = new Field("file.path", build_file_path, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                def filePathField = new Field("file.path", build_file.absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
                 filePathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                package_doc.add(filePathField)
+                build_file_doc.add(filePathField)
+
+                def filePathPrefixField = new Field("file.path_prefix", build_file_path_prefix, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                filePathPrefixField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                build_file_doc.add(filePathPrefixField)
 
                 def fileNameField = new Field("file.name", file_name, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
                 fileNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                package_doc.add(fileNameField)
+                build_file_doc.add(fileNameField)
 
                 def fileExtField = new Field("file.extension", extension, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
                 fileExtField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                package_doc.add(fileExtField)
+                build_file_doc.add(fileExtField)
 
                 def fileMimeTypeField = new Field("file.mime_type", file_mime_type, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
                 fileMimeTypeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                package_doc.add(fileMimeTypeField)
+                build_file_doc.add(fileMimeTypeField)
 
                 def fileSizeField = new NumericField("file.size", Field.Store.YES, false)
                 fileSizeField.setLongValue(file_size)
-                package_doc.add(fileSizeField)
+                build_file_doc.add(fileSizeField)
 
-                if (file_size < FILE_SIZE_LIMIT) {
+                if (file_mime_type.startsWith("text") && (file_size >= 0) && (file_size < FILE_SIZE_LIMIT)) {
                     def file_contents = build_file.text
 
                     if (file_mime_type in ["text/html", "text/xhtml"]) {
@@ -230,9 +246,9 @@ def void index_package(Map info, package_dir)
                 indexWriter.addDocument(build_file_doc)
 
                 ++file_count
+            } catch (Exception e) {
+                e.printStackTrace(System.out)
             }
-        } catch (Exception e) {
-            e.printStackTrace(System.out)
         }
     }
 
