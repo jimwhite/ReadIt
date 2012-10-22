@@ -1,0 +1,77 @@
+ssh -p 2822 jim@localhost
+sudo mount -t vboxsf -o rw,uid=jim,gid=jim LINUX_RPM /mnt/LINUX_RPM
+
+mkdir -p /mnt/LINUX_RPM/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+echo '%_topdir /mnt/LINUX_RPM/rpmbuild' > ~/.rpmmacros
+
+groovy -cp $(printf "%s:" lib/*) src/org/ifcx/extractor/MakeDependentsLists.groovy
+CLASSPATH=$(printf "%s:" lib/*) groovy src/org/ifcx/extractor/MakeDependentsLists.groovy
+
+How much disk do I need?
+
+Keep output of scripts.
+
+Funny characters in name of file:  LINUX_RPM/packages/kbd/BUILD/kbd-1.15.3/doc/utf
+Funny characters not preserved by rsync.
+
+
+=======
+PrepareSources.groovy
+---------------------
+
+[rpmbuild, -bp, --nodeps, /mnt/LINUX_RPM/rpmbuild/SPECS/tidy.spec]
+Executing(%prep): /bin/sh -e /var/tmp/rpm-tmp.cguf3A
+
+Generating the build system in /mnt/LINUX_RPM/rpmbuild/BUILD/tidy
+
+copying files into place: cd build/gnuauto && cp -R -f * /mnt/LINUX_RPM/rpmbuild/BUILD/tidy
+running: libtoolize --force --copy
+libtoolize: putting auxiliary files in `.'.
+libtoolize: copying file `./ltmain.sh'
+libtoolize: You should add the contents of the following files to `aclocal.m4':
+libtoolize:   `/usr/share/aclocal/libtool.m4'
+libtoolize:   `/usr/share/aclocal/ltoptions.m4'
+libtoolize:   `/usr/share/aclocal/ltversion.m4'
+libtoolize:   `/usr/share/aclocal/ltsugar.m4'
+libtoolize:   `/usr/share/aclocal/lt~obsolete.m4'
+libtoolize: Consider adding `AC_CONFIG_MACRO_DIR([m4])' to configure.in and
+libtoolize: rerunning libtoolize, to keep the correct libtool macros in-tree.
+libtoolize: Consider adding `-I m4' to ACLOCAL_AMFLAGS in Makefile.am.
+running: aclocal
+running: automake -a -c --foreign
+running: autoconf
+
+If the above commands were successful you should now be able
+to build in the usual way:
+
+	$ ./configure --prefix=/usr
+	$ make
+	$ make install
+
+to get a list of configure options type: ./configure --help
+
+Alternatively, you should be able to build outside of the source
+tree. e.g.:
+
+	$ mkdir ../build-tidy
+	$ cd ../build-tidy
+	$ ../tidy/configure --prefix=/usr
+	$ make
+	$ make install
+
+
+[rpmbuild, -bp, --nodeps, /mnt/LINUX_RPM/rpmbuild/SPECS/tigervnc.spec]
+Executing(%prep): /bin/sh -e /var/tmp/rpm-tmp.SAycpo
+Patch #0 (tigervnc-102434.patch):
+Patch #4 (tigervnc-cookie.patch):
+Patch #8 (tigervnc-viewer-reparent.patch):
+Patch #10 (tigervnc11-ldnow.patch):
+Patch #11 (tigervnc11-gethomedir.patch):
+Patch #13 (tigervnc11-rh692048.patch):
+
+
+RPM build errors:
+
+Non-zero exit code: 1
+
+=======
