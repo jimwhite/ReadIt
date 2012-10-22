@@ -1,6 +1,6 @@
 #!/bin/sh
 if [ -z "$LUCENE_HOME" ] ; then
-   LUCENE_HOME=/NLP_TOOLS/info_retrieval/lucene/lucene-3.5.0
+   LUCENE_HOME=/Users/jim/Projects/Apache/Lucene/lucene-3.5.0
 fi
 
 if [ -z "$GROOVY_HOME" ] ; then
@@ -15,4 +15,4 @@ export CLASSPATH=src:$LUCENE_HOME/lucene-core-3.5.0.jar
 # ./query.sh --entity_id E0662857
 # ./query.sh --entity_class 'Infobox Philosopher' --entity_class Infobox_Philosopher
 
-./query.groovy $*
+./query_do.groovy $*
