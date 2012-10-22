@@ -1,9 +1,9 @@
 package org.ifcx.readit.index
 
 import groovy.transform.EqualsAndHashCode
-import edu.stanford.nlp.util.CoreMap
-import edu.stanford.nlp.trees.semgraph.SemanticGraph
-import edu.stanford.nlp.semgrex.SemgrexMatcher
+//import edu.stanford.nlp.util.CoreMap
+//import edu.stanford.nlp.trees.semgraph.SemanticGraph
+//import edu.stanford.nlp.semgrex.SemgrexMatcher
 
 @EqualsAndHashCode(includes="label")
 //@ToString(includes="label")
@@ -25,10 +25,10 @@ class Slot
 
     public String toString() { label }
 
-    Set<Answer> extract(Slot slot, def doc_id, Integer sentence_num, CoreMap sentence, SemanticGraph g, SemgrexMatcher m)
-    {
-        extractor(slot, doc_id, sentence_num, sentence, g, m)
-    }
+//    Set<Answer> extract(Slot slot, def doc_id, Integer sentence_num, CoreMap sentence, SemanticGraph g, SemgrexMatcher m)
+//    {
+//        extractor(slot, doc_id, sentence_num, sentence, g, m)
+//    }
 
     // Return true if the given answer should be included for this slot.
     // The value of the answer may be modified from the raw extraction pattern's match.

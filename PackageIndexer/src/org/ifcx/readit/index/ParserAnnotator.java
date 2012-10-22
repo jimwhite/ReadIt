@@ -1,5 +1,6 @@
 package org.ifcx.readit.index;
 
+/*
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.parser.lexparser.LexicalizedParser;
@@ -18,6 +19,7 @@ import edu.stanford.nlp.util.StringUtils;
 import java.util.List;
 import java.util.Properties;
 
+*/
 /**
  * This class will add parse information to an Annotation.
  * It assumes that the Annotation already contains the tokenized words
@@ -33,7 +35,8 @@ import java.util.Properties;
  * {@code CoreAnnotations.TreeAnnotation}).
  *
  * @author Jenny Finkel
- */
+ *//*
+
 public class ParserAnnotator implements Annotator
 {
     private final boolean VERBOSE;
@@ -41,10 +44,14 @@ public class ParserAnnotator implements Annotator
 
     private final Function<Tree, Tree> treeMap;
 
-    /** Do not parse sentences larger than this sentence length */
+    */
+/** Do not parse sentences larger than this sentence length *//*
+
     int maxSentenceLength;
 
-    /** Time limit in milliseconds to parse each sentence.  Zero means no time limit. */
+    */
+/** Time limit in milliseconds to parse each sentence.  Zero means no time limit. *//*
+
     long maxSentenceParseTimeMillis = 0;
 
     public static final String[] DEFAULT_FLAGS = { "-retainTmpSubcategories" };
@@ -190,3 +197,4 @@ public class ParserAnnotator implements Annotator
         }
     }
 }
+*/

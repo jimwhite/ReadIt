@@ -1,13 +1,13 @@
 package org.ifcx.readit.index
 
-import edu.stanford.nlp.util.CoreMap
-import edu.stanford.nlp.semgrex.SemgrexMatcher
-import edu.stanford.nlp.trees.semgraph.SemanticGraph
-import edu.stanford.nlp.ling.CoreAnnotations
+//import edu.stanford.nlp.util.CoreMap
+//import edu.stanford.nlp.semgrex.SemgrexMatcher
+//import edu.stanford.nlp.trees.semgraph.SemanticGraph
+//import edu.stanford.nlp.ling.CoreAnnotations
 
 import static Model.*
-import edu.stanford.nlp.ling.IndexedWord
-import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
+//import edu.stanford.nlp.ling.IndexedWord
+//import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
 
 class ExtractionRules
 {
@@ -15,22 +15,22 @@ class ExtractionRules
 
     ExtractionRules()
     {
-        def simple_extractor = { Slot slot, def doc_id, Integer sent_num, CoreMap sentence, SemanticGraph g, SemgrexMatcher m ->
-            Set<Answer> answers = []
-
-            while (m.find()) {
-                def entity = m.getNode('entity')
-                def value = m.getNode('value')
-
-                if (entity && value) {
-                    def answer = new Answer(slot: slot, doc_id: doc_id, sent_num: sent_num, sentence: sentence, words: child_text_words(value, sentence))
-
-                    if (slot.filter(answer)) answers.add(answer)
-                }
-            }
-
-            answers
-        }
+//        def simple_extractor = { Slot slot, def doc_id, Integer sent_num, CoreMap sentence, SemanticGraph g, SemgrexMatcher m ->
+//            Set<Answer> answers = []
+//
+//            while (m.find()) {
+//                def entity = m.getNode('entity')
+//                def value = m.getNode('value')
+//
+//                if (entity && value) {
+//                    def answer = new Answer(slot: slot, doc_id: doc_id, sent_num: sent_num, sentence: sentence, words: child_text_words(value, sentence))
+//
+//                    if (slot.filter(answer)) answers.add(answer)
+//                }
+//            }
+//
+//            answers
+//        }
 
         extractor(PER_AGE,simple_extractor)
         extractor(PER_CAUSE_OF_DEATH,simple_extractor)
@@ -58,22 +58,22 @@ class ExtractionRules
         extractor(PER_SPOUSE,simple_extractor)
         extractor(PER_TITLE,simple_extractor)
 
-        extractor(PER_ALTERNATE_NAMES, { Slot slot, def doc_id, Integer sent_num, CoreMap sentence, SemanticGraph g, SemgrexMatcher m ->
-            Set<Answer> answers = []
-
-            while (m.find()) {
-                def entity = m.getNode('entity1') ?: m.getNode('entity2')
-                def name = m.getNode('value1') ?: m.getNode('value2')
-
-                if (entity && name) {
-                    def answer = new Answer(slot: slot, doc_id: doc_id, sent_num: sent_num, sentence: sentence, words: entity_name_words(name, sentence))
-
-                    if (slot.filter(answer)) answers.add(answer)
-                }
-            }
-
-            answers
-        })
+//        extractor(PER_ALTERNATE_NAMES, { Slot slot, def doc_id, Integer sent_num, CoreMap sentence, SemanticGraph g, SemgrexMatcher m ->
+//            Set<Answer> answers = []
+//
+//            while (m.find()) {
+//                def entity = m.getNode('entity1') ?: m.getNode('entity2')
+//                def name = m.getNode('value1') ?: m.getNode('value2')
+//
+//                if (entity && name) {
+//                    def answer = new Answer(slot: slot, doc_id: doc_id, sent_num: sent_num, sentence: sentence, words: entity_name_words(name, sentence))
+//
+//                    if (slot.filter(answer)) answers.add(answer)
+//                }
+//            }
+//
+//            answers
+//        })
 
     }
 
@@ -106,15 +106,15 @@ class ExtractionRules
         Model.slots[label].extractor = closure
     }
 
-    List<IndexedWord> entity_name_words(IndexedWord head, CoreMap sentence)
-    {
-        SemanticGraph g = sentence.get(SemanticGraphCoreAnnotations.BasicDependenciesAnnotation)
-        g.descendants(head).sort()
-    }
-
-    List<IndexedWord> child_text_words(IndexedWord head, CoreMap sentence)
-    {
-        SemanticGraph g = sentence.get(SemanticGraphCoreAnnotations.BasicDependenciesAnnotation)
-        g.descendants(head).sort()
-    }
+//    List<IndexedWord> entity_name_words(IndexedWord head, CoreMap sentence)
+//    {
+//        SemanticGraph g = sentence.get(SemanticGraphCoreAnnotations.BasicDependenciesAnnotation)
+//        g.descendants(head).sort()
+//    }
+//
+//    List<IndexedWord> child_text_words(IndexedWord head, CoreMap sentence)
+//    {
+//        SemanticGraph g = sentence.get(SemanticGraphCoreAnnotations.BasicDependenciesAnnotation)
+//        g.descendants(head).sort()
+//    }
 }

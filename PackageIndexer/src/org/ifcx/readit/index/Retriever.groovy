@@ -1,5 +1,6 @@
 package org.ifcx.readit.index
 
+/*
 import edu.stanford.nlp.pipeline.Annotation
 import edu.stanford.nlp.io.IOUtils
 import edu.stanford.nlp.util.CoreMap
@@ -10,10 +11,12 @@ import edu.stanford.nlp.trees.semgraph.SemanticGraph
 import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
 import edu.stanford.nlp.ling.IndexedWord
 import edu.stanford.nlp.semgrex.SemgrexPattern
+*/
 import java.util.regex.Pattern
 
 class Retriever
 {
+/*
     File preprocessed_dir
     ExtractionRules extraction_rules = new ExtractionRulesWithPatterns()
     List<String> all_slot_labels
@@ -162,7 +165,8 @@ class Retriever
 
     static def coref_chain_mentions_name(CorefChain coref_chain, String name)
     {
-        def pattern = ~(/(?i)[^\p{L}]*(?:-LRB-.*-RRB-[^\p{L}]*)?/ + Pattern.quote(name) + /(?:\s*'s)?(?:[^\p{L}]*-LRB-.*-RRB-)?[^\p{L}]*/)
+        def pattern = ~(/(?i)[^\p{L}]*(?:-LRB-.*-RRB-[^\p{L}]*)?/ + Pattern.quote(name) + /(?:\s*'s)?(?:[^\p{L}]*-LRB-.*-RRB-)?[^\p{L}]*//*
+)
         // http://localhost:5000/query/SF101/document/eng-WL-11-174592-12943032
         // http://localhost:5000/query/SF124/document/eng-WL-11-174597-12966129
 //        def mentions = coref_chain.corefMentions.collect { it.mentionSpan.toLowerCase() }
@@ -214,5 +218,6 @@ class Retriever
 
         slot_to_answers
     }
+*/
 
 }

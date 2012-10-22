@@ -2,8 +2,8 @@ package org.ifcx.readit.index
 
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
-import edu.stanford.nlp.ling.IndexedWord
-import edu.stanford.nlp.util.CoreMap
+//import edu.stanford.nlp.ling.IndexedWord
+//import edu.stanford.nlp.util.CoreMap
 
 // An answer is unique based on the slot and the value.
 @EqualsAndHashCode(includes="slot,value")
@@ -17,8 +17,8 @@ class Answer
     String doc_id
     Integer sent_num
 
-    CoreMap sentence
-    List<IndexedWord> words
+//    CoreMap sentence
+//    List<IndexedWord> words
 
     String stringValue
 

@@ -10,8 +10,15 @@
       <root url="jar://$PROJECT_DIR$/lib/jetty-6.1.26.jar!/" />
       <root url="jar://$PROJECT_DIR$/lib/servlet-api-2.5.jar!/" />
       <root url="jar://$PROJECT_DIR$/lib/lucene-core-3.5.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/xml-apis.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/xercesImpl.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/nekohtml.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../../Apache/Lucene/lucene-3.5.0/src/java" />
+      <root url="file://$PROJECT_DIR$/../../Apache/Lucene/lucene-3.5.0/src/tools/java" />
+      <root url="file://$PROJECT_DIR$/../../ifcx/thirdparty/nekohtml-1.9.14/src" />
+    </SOURCES>
   </library>
 </component>

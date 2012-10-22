@@ -1,6 +1,6 @@
 package org.ifcx.readit.index
 
-import edu.stanford.nlp.ling.IndexedWord
+//import edu.stanford.nlp.ling.IndexedWord
 
 class Model
 {
@@ -41,7 +41,7 @@ class Model
 
     static PER = filler(new Filler('PER') {
         boolean filter(Answer answer) {
-            (answer.words.size() > 1) && (answer.words.every { IndexedWord word -> word.lemma().matches(/(?i).*[aeiouy].*/)})
+//            (answer.words.size() > 1) && (answer.words.every { IndexedWord word -> word.lemma().matches(/(?i).*[aeiouy].*/)})
         }
     })
 
@@ -104,26 +104,26 @@ class Model
 
     static CITY = filler(new Filler('CITY') {
         boolean filter(Answer answer) {
-            def state_index = answer.words.findIndexOf { IndexedWord w -> w.ner() == 'STATE_OR_PROVINCE' }
-
-            if (state_index > 0) {
-                answer.words = answer.words.subList(0, state_index)
-            } else if (state_index == 0) {
-                answer.words = []
-            }
-
-            answer.words.size() > 0
+//            def state_index = answer.words.findIndexOf { IndexedWord w -> w.ner() == 'STATE_OR_PROVINCE' }
+//
+//            if (state_index > 0) {
+//                answer.words = answer.words.subList(0, state_index)
+//            } else if (state_index == 0) {
+//                answer.words = []
+//            }
+//
+//            answer.words.size() > 0
         }
     })
 
     static STATE_OR_PROVINCE = filler(new Filler('STATE_OR_PROVINCE') {
-        boolean filter(Answer answer) {
-            def fewer_words = ner_words(answer, 'STATE_OR_PROVINCE')
-
-            answer.words = fewer_words
-
-            answer.words.size() > 0
-        }
+//        boolean filter(Answer answer) {
+//            def fewer_words = ner_words(answer, 'STATE_OR_PROVINCE')
+//
+//            answer.words = fewer_words
+//
+//            answer.words.size() > 0
+//        }
     })
 
     // Flag values for indicating whether a slot is limited to a single values or may have multiple values.
@@ -171,52 +171,52 @@ class Model
 //    per:spouse	list	PERSON
 //    per:title	list	TITLE
 
-    static PER_AGE = slot('per:age',SINGLE,NUMBER)
-    static PER_CAUSE_OF_DEATH = slot('per:cause_of_death',SINGLE,CAUSE_OF_DEATH)
-    static PER_CHARGES = slot('per:charges',MULTIPLE,CRIMINAL_CHARGE)
-    static PER_CHILDREN = slot('per:children',MULTIPLE,PER)
-    static PER_DATE_OF_BIRTH = slot('per:date_of_birth',SINGLE,DATE)
-    static PER_DATE_OF_DEATH = slot('per:date_of_death',SINGLE,DATE)
-    static PER_EMPLOYEE_OF = slot('per:employee_of',MULTIPLE,ORG)
-    static PER_MEMBER_OF = slot('per:member_of',MULTIPLE,ORG)
-    static PER_ORIGIN = slot('per:origin',MULTIPLE,NATIONALITY)
-    static PER_OTHER_FAMILY = slot('per:other_family',MULTIPLE,PER)
-    static PER_PARENTS = slot('per:parents',MULTIPLE,PER)
-    static PER_COUNTRY_OF_BIRTH = slot('per:country_of_birth',SINGLE,COUNTRY)
-    static PER_STATEORPROVINCE_OF_BIRTH = slot('per:stateorprovince_of_birth',SINGLE,STATE_OR_PROVINCE)
-    static PER_CITY_OF_BIRTH = slot('per:city_of_birth',SINGLE,CITY)
-    static PER_COUNTRY_OF_DEATH = slot('per:country_of_death',SINGLE,COUNTRY)
-    static PER_STATEORPROVINCE_OF_DEATH = slot('per:stateorprovince_of_death',SINGLE,STATE_OR_PROVINCE)
-    static PER_CITY_OF_DEATH = slot('per:city_of_death',SINGLE,CITY)
-    static PER_RELIGION = slot('per:religion',SINGLE,RELIGION)
-    static PER_COUNTRIES_OF_RESIDENCE = slot('per:countries_of_residence',MULTIPLE,COUNTRY)
-    static PER_STATEORPROVINCES_OF_RESIDENCE = slot('per:stateorprovinces_of_residence',MULTIPLE,STATE_OR_PROVINCE)
-    static PER_CITIES_OF_RESIDENCE = slot('per:cities_of_residence',MULTIPLE,CITY)
-    static PER_SCHOOLS_ATTENDED = slot('per:schools_attended',MULTIPLE,ORG)
-    static PER_SIBLINGS = slot('per:siblings',MULTIPLE,PER)
-    static PER_SPOUSE = slot('per:spouse',MULTIPLE,PER)
-    static PER_TITLE = slot('per:title',MULTIPLE,TITLE)
+//    static PER_AGE = slot('per:age',SINGLE,NUMBER)
+//    static PER_CAUSE_OF_DEATH = slot('per:cause_of_death',SINGLE,CAUSE_OF_DEATH)
+//    static PER_CHARGES = slot('per:charges',MULTIPLE,CRIMINAL_CHARGE)
+//    static PER_CHILDREN = slot('per:children',MULTIPLE,PER)
+//    static PER_DATE_OF_BIRTH = slot('per:date_of_birth',SINGLE,DATE)
+//    static PER_DATE_OF_DEATH = slot('per:date_of_death',SINGLE,DATE)
+//    static PER_EMPLOYEE_OF = slot('per:employee_of',MULTIPLE,ORG)
+//    static PER_MEMBER_OF = slot('per:member_of',MULTIPLE,ORG)
+//    static PER_ORIGIN = slot('per:origin',MULTIPLE,NATIONALITY)
+//    static PER_OTHER_FAMILY = slot('per:other_family',MULTIPLE,PER)
+//    static PER_PARENTS = slot('per:parents',MULTIPLE,PER)
+//    static PER_COUNTRY_OF_BIRTH = slot('per:country_of_birth',SINGLE,COUNTRY)
+//    static PER_STATEORPROVINCE_OF_BIRTH = slot('per:stateorprovince_of_birth',SINGLE,STATE_OR_PROVINCE)
+//    static PER_CITY_OF_BIRTH = slot('per:city_of_birth',SINGLE,CITY)
+//    static PER_COUNTRY_OF_DEATH = slot('per:country_of_death',SINGLE,COUNTRY)
+//    static PER_STATEORPROVINCE_OF_DEATH = slot('per:stateorprovince_of_death',SINGLE,STATE_OR_PROVINCE)
+//    static PER_CITY_OF_DEATH = slot('per:city_of_death',SINGLE,CITY)
+//    static PER_RELIGION = slot('per:religion',SINGLE,RELIGION)
+//    static PER_COUNTRIES_OF_RESIDENCE = slot('per:countries_of_residence',MULTIPLE,COUNTRY)
+//    static PER_STATEORPROVINCES_OF_RESIDENCE = slot('per:stateorprovinces_of_residence',MULTIPLE,STATE_OR_PROVINCE)
+//    static PER_CITIES_OF_RESIDENCE = slot('per:cities_of_residence',MULTIPLE,CITY)
+//    static PER_SCHOOLS_ATTENDED = slot('per:schools_attended',MULTIPLE,ORG)
+//    static PER_SIBLINGS = slot('per:siblings',MULTIPLE,PER)
+//    static PER_SPOUSE = slot('per:spouse',MULTIPLE,PER)
+//    static PER_TITLE = slot('per:title',MULTIPLE,TITLE)
 
     // Helper routines for filter functions.
 
     // Return a list of contiguous words in the answer that are annotated with the given NER value,
     // or the empty list if there are none.
-    static List<IndexedWord> ner_words(Answer answer, String nerValue)
-    {
-        def words = []
-
-        def ner_index = answer.words.findIndexOf { IndexedWord w -> w.ner() == nerValue }
-
-        if (ner_index >= 0) {
-            words = answer.words.subList(ner_index, answer.words.size())
-
-            def non_ner_index = words.findIndexOf { IndexedWord w -> w.ner() != nerValue }
-
-            if (non_ner_index > 0) words = words.take(non_ner_index)
-        }
-
-        words
-    }
+//    static List<IndexedWord> ner_words(Answer answer, String nerValue)
+//    {
+//        def words = []
+//
+//        def ner_index = answer.words.findIndexOf { IndexedWord w -> w.ner() == nerValue }
+//
+//        if (ner_index >= 0) {
+//            words = answer.words.subList(ner_index, answer.words.size())
+//
+//            def non_ner_index = words.findIndexOf { IndexedWord w -> w.ner() != nerValue }
+//
+//            if (non_ner_index > 0) words = words.take(non_ner_index)
+//        }
+//
+//        words
+//    }
 
     static {
 //        println slots

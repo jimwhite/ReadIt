@@ -3,16 +3,16 @@ package org.ifcx.readit.index
 import com.bleedingwolf.ratpack.Ratpack
 import com.bleedingwolf.ratpack.RatpackServlet
 import groovy.xml.StreamingMarkupBuilder
-import edu.stanford.nlp.pipeline.Annotation
-import edu.stanford.nlp.io.IOUtils
-import edu.stanford.nlp.util.CoreMap
-import edu.stanford.nlp.ling.CoreAnnotations
-import edu.stanford.nlp.dcoref.CorefChain
-import edu.stanford.nlp.dcoref.CorefCoreAnnotations
-import edu.stanford.nlp.trees.semgraph.SemanticGraph
-import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
-import edu.stanford.nlp.ling.IndexedWord
-import edu.stanford.nlp.trees.semgraph.SemanticGraphEdge
+//import edu.stanford.nlp.pipeline.Annotation
+//import edu.stanford.nlp.io.IOUtils
+//import edu.stanford.nlp.util.CoreMap
+//import edu.stanford.nlp.ling.CoreAnnotations
+//import edu.stanford.nlp.dcoref.CorefChain
+//import edu.stanford.nlp.dcoref.CorefCoreAnnotations
+//import edu.stanford.nlp.trees.semgraph.SemanticGraph
+//import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
+//import edu.stanford.nlp.ling.IndexedWord
+//import edu.stanford.nlp.trees.semgraph.SemanticGraphEdge
 
 queries_dir = new File('output/queries')
 preprocessed_dir = new File('output/preprocessed')
@@ -154,54 +154,54 @@ def app = Ratpack.app {
 
                     def annotation = document.annotation
 
-                    if (annotation) {
-                        List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class)
-
-                        Map<Integer, CorefChain> coref_chains = annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class)
-
-                        def retriever = new Retriever(query.folder, preprocessed_dir)
-
-                        def query_coref_chains = coref_chains.values().findAll { Retriever.coref_chain_mentions_name(it, query.name) }
-
-                        def query_match_sentence_nums = query_coref_chains.collectMany { retriever.sentence_numbers_with_mentions(it, sentences) }
-
-                        if (query_coref_chains) {
-                            h3 "Query Name Mentions"
-                            p { query_match_sentence_nums.each { span(it) ; span(' ') } }
-
-                            query_coref_chains.each { CorefChain coref_chain  ->
-                                p {
-                                    coref_chain.corefMentions.each { div(it as String) }
-                                }
-                            }
-                        } else {
-                            h3 "Query Name Not Matched in DCoRef Mentions"
-                        }
-
-                        h3 "Sentences"
-
-                        sentences.eachWithIndex { sentence, x ->
-                            def sent_num = x + 1
-                            p {
-                                if (sent_num in query_match_sentence_nums) {
-                                    span { em('*') }
-                                    span ' '
-                                }
-                                a(href:href_sentence(query, document.id, sent_num), sent_num as String)
-                                span ': '
-                                span sentence as String
-                            }
-                        }
-                        h3 "Coref Chains"
-                        coref_chains.each { coref_num, CorefChain coref_chain  ->
-                            p {
-//                                span coref_num
-//                                span ' '
-                                coref_chain.corefMentions.each { div(it as String) }
-                            }
-                        }
-
-                    }
+//                    if (annotation) {
+//                        List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class)
+//
+//                        Map<Integer, CorefChain> coref_chains = annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class)
+//
+//                        def retriever = new Retriever(query.folder, preprocessed_dir)
+//
+//                        def query_coref_chains = coref_chains.values().findAll { Retriever.coref_chain_mentions_name(it, query.name) }
+//
+//                        def query_match_sentence_nums = query_coref_chains.collectMany { retriever.sentence_numbers_with_mentions(it, sentences) }
+//
+//                        if (query_coref_chains) {
+//                            h3 "Query Name Mentions"
+//                            p { query_match_sentence_nums.each { span(it) ; span(' ') } }
+//
+//                            query_coref_chains.each { CorefChain coref_chain  ->
+//                                p {
+//                                    coref_chain.corefMentions.each { div(it as String) }
+//                                }
+//                            }
+//                        } else {
+//                            h3 "Query Name Not Matched in DCoRef Mentions"
+//                        }
+//
+//                        h3 "Sentences"
+//
+//                        sentences.eachWithIndex { sentence, x ->
+//                            def sent_num = x + 1
+//                            p {
+//                                if (sent_num in query_match_sentence_nums) {
+//                                    span { em('*') }
+//                                    span ' '
+//                                }
+//                                a(href:href_sentence(query, document.id, sent_num), sent_num as String)
+//                                span ': '
+//                                span sentence as String
+//                            }
+//                        }
+//                        h3 "Coref Chains"
+//                        coref_chains.each { coref_num, CorefChain coref_chain  ->
+//                            p {
+////                                span coref_num
+////                                span ' '
+//                                coref_chain.corefMentions.each { div(it as String) }
+//                            }
+//                        }
+//
+//                    }
                 }
             }
         }.toString()
@@ -331,46 +331,46 @@ def sentence_response(query, document, sent_num, String new_slot, String new_pat
 
                 def annotation = document.annotation
 
-                List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class)
-
-                def sentence = sentences[sent_num - 1]
-
-                if (sentence) {
-
-                    p sentence
-
-                    SemanticGraph g = sentence.get(SemanticGraphCoreAnnotations.CollapsedDependenciesAnnotation.class)
-                    g = new SemanticGraph(g)
-                    Set<IndexedWord> vertexSet = g.vertexSet()
-
-                    // Don't leave our marks around in case the sentence is processed again.
-                    // Not entirely clear to me what sharing goes on, but this does appear to be necessary for that.
-                    //                    vertexSet.each { it.set(CoreAnnotations.FeaturesAnnotation, '') }
-
-                    Map<Integer, CorefChain> coref_chains = annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class)
-                    //                    println query.name
-                    coref_chains.each { coref_num, CorefChain coref_chain ->
-                        //                        println coref_chain
-                        if (Retriever.coref_chain_mentions_name(coref_chain, query.name)) {
-                            //                            println "CorefChain has mentions"
-                            coref_chain.corefMentions.each { mention ->
-                                if (mention.sentNum == sent_num) {
-                                    //                                    println "Sentence has mentions"
-                                    // Mark the nodes for all tokens (that have one) except the head token as being {features:mentionToken}.
-                                    ((mention.startIndex..<mention.endIndex) - [mention.headIndex]).each { x ->
-                                        // If we're using collapsed dependencies (as we are), not all tokens will have a node in the graph.
-                                        (vertexSet.find { it.index() == x })?.set(CoreAnnotations.FeaturesAnnotation, 'mentionToken')
-                                    }
-
-                                    // Mark the node for the head token as {features:mention}.
-                                    def headIndex = vertexSet.find { it.index() == mention.headIndex }
-                                    headIndex?.set(CoreAnnotations.FeaturesAnnotation, 'mention')
-                                }
-                            }
-                        }
-                    }
-
-                    g = new SemanticGraph(g)
+//                List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class)
+//
+//                def sentence = sentences[sent_num - 1]
+//
+//                if (sentence) {
+//
+//                    p sentence
+//
+//                    SemanticGraph g = sentence.get(SemanticGraphCoreAnnotations.CollapsedDependenciesAnnotation.class)
+//                    g = new SemanticGraph(g)
+//                    Set<IndexedWord> vertexSet = g.vertexSet()
+//
+//                    // Don't leave our marks around in case the sentence is processed again.
+//                    // Not entirely clear to me what sharing goes on, but this does appear to be necessary for that.
+//                    //                    vertexSet.each { it.set(CoreAnnotations.FeaturesAnnotation, '') }
+//
+//                    Map<Integer, CorefChain> coref_chains = annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class)
+//                    //                    println query.name
+//                    coref_chains.each { coref_num, CorefChain coref_chain ->
+//                        //                        println coref_chain
+//                        if (Retriever.coref_chain_mentions_name(coref_chain, query.name)) {
+//                            //                            println "CorefChain has mentions"
+//                            coref_chain.corefMentions.each { mention ->
+//                                if (mention.sentNum == sent_num) {
+//                                    //                                    println "Sentence has mentions"
+//                                    // Mark the nodes for all tokens (that have one) except the head token as being {features:mentionToken}.
+//                                    ((mention.startIndex..<mention.endIndex) - [mention.headIndex]).each { x ->
+//                                        // If we're using collapsed dependencies (as we are), not all tokens will have a node in the graph.
+//                                        (vertexSet.find { it.index() == x })?.set(CoreAnnotations.FeaturesAnnotation, 'mentionToken')
+//                                    }
+//
+//                                    // Mark the node for the head token as {features:mention}.
+//                                    def headIndex = vertexSet.find { it.index() == mention.headIndex }
+//                                    headIndex?.set(CoreAnnotations.FeaturesAnnotation, 'mention')
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                    g = new SemanticGraph(g)
                     //                    println headIndex?.get(CoreAnnotations.FeaturesAnnotation)
                     //                    def xxx = headIndex ? headIndex.index() : -1
                     //                            { ->
@@ -382,9 +382,9 @@ def sentence_response(query, document, sent_num, String new_slot, String new_pat
                     //                            }()
 
                     pre ExplorerUtils.toString(g)
-                } else {
-                    p '<EOD/>'
-                }
+//                } else {
+//                    p '<EOD/>'
+//                }
             }
         }
     }.toString()
@@ -431,86 +431,86 @@ def query_info(String query_id)
 
 def document_info(String doc_id)
 {
-    Annotation annotation = null
-
-    def preprocessed_file = new File(preprocessed_dir, doc_id + ".sgm.ser.gz")
-
-    if (!(preprocessed_file.exists() ))  {
-        println "file ${preprocessed_file} doesn't exist"
-    } else {
-        try {
-            annotation = IOUtils.readObjectFromFile(preprocessed_file)
-        } catch (Exception e) {
-            println e
-        }
-    }
-
-    [id: doc_id, annotation:annotation]
-}
-
-class ExplorerUtils
-{
-    static public String toString(SemanticGraph g)
-    {
-        Collection<IndexedWord> rootNodes = g.getRoots();
-        if (rootNodes.isEmpty()) {
-            // Shouldn't happen, but return something!
-            return g.toString("readable");
-        }
-
-        StringBuilder sb = new StringBuilder();
-        Set<IndexedWord> used = new HashSet<IndexedWord>();
-        for (IndexedWord root : rootNodes) {
-            if (root != null) {
-                sb.append("root -> $root ${show_ner(root.get(CoreAnnotations.NamedEntityTagAnnotation))} ${root.get(CoreAnnotations.FeaturesAnnotation) ?: ''}\n");
-                recToString(g, root, sb, 1, used);
-            }
-        }
-        Set<IndexedWord> nodes = new HashSet<IndexedWord>(g.vertexSet());
-        nodes.removeAll(used);
-        while (!nodes.isEmpty()) {
-            IndexedWord node = nodes.iterator().next();
-            sb.append(node).append("\n");
-            recToString(g, node, sb, 1, used);
-            nodes.removeAll(used);
-        }
-        return sb.toString();
-    }
-
-    // helper for toString()
-    static  void recToString(SemanticGraph g, IndexedWord curr, StringBuilder sb, int offset, Set<IndexedWord> used)
-    {
-        used.add(curr);
-        List<SemanticGraphEdge> edges = g.outgoingEdgeList(curr);
-        Collections.sort(edges);
-        for (SemanticGraphEdge edge : edges) {
-            IndexedWord target = edge.getTarget();
-//            sb.append(space(2 * offset)).append("-> ").append(target).append(" (").append(edge.getRelation()).append(")\n");
-            sb.append(space(2 * offset))
-            def features = target.get(CoreAnnotations.FeaturesAnnotation)
-//            print features ;println features?.class
-            sb.append("${edge.getRelation()} -> $target ${show_ner(target.get(CoreAnnotations.NamedEntityTagAnnotation))} ${features ? features : ''}\n");
-            if (!used.contains(target)) { // recurse
-                recToString(g, target, sb, offset + 1, used);
-            }
-        }
-    }
-
-//    static String ne_label(IndexedWord target)
-//    {
-//        def neTag = target.get(CoreAnnotations.NamedEntityTagAnnotation)
+//    Annotation annotation = null
 //
-//        neTag ? neTag
+//    def preprocessed_file = new File(preprocessed_dir, doc_id + ".sgm.ser.gz")
+//
+//    if (!(preprocessed_file.exists() ))  {
+//        println "file ${preprocessed_file} doesn't exist"
+//    } else {
+//        try {
+//            annotation = IOUtils.readObjectFromFile(preprocessed_file)
+//        } catch (Exception e) {
+//            println e
+//        }
 //    }
-
-    static String show_ner(ner) { ner != 'O' ? ner : '' }
-
-    static String space(int width)
-    {
-        StringBuilder b = new StringBuilder();
-        for (int i = 0; i < width; i++) {
-            b.append(" ");
-        }
-        return b.toString();
-    }
+//
+//    [id: doc_id, annotation:annotation]
 }
+
+//class ExplorerUtils
+//{
+//    static public String toString(SemanticGraph g)
+//    {
+//        Collection<IndexedWord> rootNodes = g.getRoots();
+//        if (rootNodes.isEmpty()) {
+//            // Shouldn't happen, but return something!
+//            return g.toString("readable");
+//        }
+//
+//        StringBuilder sb = new StringBuilder();
+//        Set<IndexedWord> used = new HashSet<IndexedWord>();
+//        for (IndexedWord root : rootNodes) {
+//            if (root != null) {
+//                sb.append("root -> $root ${show_ner(root.get(CoreAnnotations.NamedEntityTagAnnotation))} ${root.get(CoreAnnotations.FeaturesAnnotation) ?: ''}\n");
+//                recToString(g, root, sb, 1, used);
+//            }
+//        }
+//        Set<IndexedWord> nodes = new HashSet<IndexedWord>(g.vertexSet());
+//        nodes.removeAll(used);
+//        while (!nodes.isEmpty()) {
+//            IndexedWord node = nodes.iterator().next();
+//            sb.append(node).append("\n");
+//            recToString(g, node, sb, 1, used);
+//            nodes.removeAll(used);
+//        }
+//        return sb.toString();
+//    }
+//
+//    // helper for toString()
+//    static  void recToString(SemanticGraph g, IndexedWord curr, StringBuilder sb, int offset, Set<IndexedWord> used)
+//    {
+//        used.add(curr);
+//        List<SemanticGraphEdge> edges = g.outgoingEdgeList(curr);
+//        Collections.sort(edges);
+//        for (SemanticGraphEdge edge : edges) {
+//            IndexedWord target = edge.getTarget();
+////            sb.append(space(2 * offset)).append("-> ").append(target).append(" (").append(edge.getRelation()).append(")\n");
+//            sb.append(space(2 * offset))
+//            def features = target.get(CoreAnnotations.FeaturesAnnotation)
+////            print features ;println features?.class
+//            sb.append("${edge.getRelation()} -> $target ${show_ner(target.get(CoreAnnotations.NamedEntityTagAnnotation))} ${features ? features : ''}\n");
+//            if (!used.contains(target)) { // recurse
+//                recToString(g, target, sb, offset + 1, used);
+//            }
+//        }
+//    }
+//
+////    static String ne_label(IndexedWord target)
+////    {
+////        def neTag = target.get(CoreAnnotations.NamedEntityTagAnnotation)
+////
+////        neTag ? neTag
+////    }
+//
+//    static String show_ner(ner) { ner != 'O' ? ner : '' }
+//
+//    static String space(int width)
+//    {
+//        StringBuilder b = new StringBuilder();
+//        for (int i = 0; i < width; i++) {
+//            b.append(" ");
+//        }
+//        return b.toString();
+//    }
+//}
