@@ -22,6 +22,7 @@ import org.apache.xerces.xni.XMLString
 import org.apache.xerces.xni.QName
 import org.apache.xerces.xni.XMLAttributes
 import org.apache.xerces.xni.XMLResourceIdentifier
+import org.apache.lucene.document.NumericField
 
 args = args as List
 
@@ -66,9 +67,9 @@ FILE_SIZE_LIMIT = 1000000
 
 indexDirectory = FSDirectory.open(index_dir)
 
-IndexWriter writer = new IndexWriter(indexDirectory, new IndexWriterConfig(Version.LUCENE_CURRENT, new StandardAnalyzer(Version.LUCENE_CURRENT)))
+indexWriter = open_index_writer()
+
 //writer.useCompoundFile = false
-writer.maxBufferedDocs
 package_count = 0
 file_count = 0
 
@@ -79,127 +80,168 @@ packages_dir.eachFile { package_dir ->
 
         println info.name
 
-        // name
-        // spec
-        // release
-        // build files dir path
-
-        def package_doc = new Document()
-
-        def typeField = new Field("type", "package", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-        typeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-        package_doc.add(typeField)
-
-        def releaseField = new Field("release", release_id, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-        releaseField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-        package_doc.add(releaseField)
-
-        def packageNameField = new Field("package.name", info.name, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-        packageNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-        package_doc.add(packageNameField)
-
-        def specField = new Field("package.spec", info.spec, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-        specField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-        package_doc.add(specField)
-
-        String build_dir_name = info.build_dir
-
-        def build_files_dir = new File(package_dir, build_dir_name)
-
-        def packagePathField = new Field("package.build_files_path", build_files_dir.absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-        packagePathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-        package_doc.add(packagePathField)
-
-        add_package_list_fields(package_doc, package_dir, "buildrequires.txt", "buildrequires")
-        add_package_list_fields(package_doc, package_dir, "requires.txt", "requires")
-        add_package_list_fields(package_doc, package_dir, "provides.txt", "provides")
-
-        // requires*        trim ' = ...' and unique
-        // buildrequires*   "  "
-        // provides*        "  "
-        // each file:
-        //    mime (as guessed by file command)
-        //    extension
-
-        def fileTypeField = new Field("type", "file", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-        fileTypeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-
-        def build_files_list = new File(package_dir, "file_types.txt").readLines().collect { it.trim() }.grep()
-
-        build_files_list.each { String file_path_and_type ->
-            // Mime type follows the null char.
-            def file_mime_type = file_path_and_type.substring(file_path_and_type.indexOf(0) + (" : ".length()))
-
-            // We don't really need the guessed charset.
-            if (file_mime_type.indexOf(';') > 0) {
-                file_mime_type = file_mime_type.substring(0, file_mime_type.indexOf(';'))
-            }
-
-            def build_file_path = file_path_and_type.substring(0, file_path_and_type.indexOf(0))
-
+        try {
+            index_package(info, package_dir)
+        } catch (Error error1) {
+            error1.printStackTrace(System.out)
+            println("Closing index...")
+            indexWriter.close()
+            println("Reopening index...")
+            indexWriter = open_index_writer()
+            println("Retrying on " + info.name)
             try {
-                def build_file = new File(package_dir, build_file_path)
+                index_package(info, package_dir)
+                println("Retry success!")
+            } catch (Error error2) {
+                println("Retry failed!")
+                error2.printStackTrace(System.out)
+                println("Closing index...")
+                indexWriter.close()
+                println("Reopening index...")
+                indexWriter = open_index_writer()
+                println("Skipping " + info.name)
+            }
+        }
+    }
+}
 
-                build_file_path = build_file_path.substring(build_dir_name.length() + 1)
+indexWriter.close()
 
-                if (file_mime_type.startsWith("text")  && build_file.exists() && (build_file.size() < FILE_SIZE_LIMIT)) {
-                    def file_name = build_file.name
-                    def extension = file_name.contains(' ') ? file_name.toLowerCase().substring(file_name.lastIndexOf(' ') + 1) : ".none."
+println "Added ${package_count} packages with ${file_count} files to index."
 
-                    if ((file_mime_type == "text/html") && (extension in ["c", "h", "cpp", "hpp", "cxx", "hxx", "py", "java"])) {
-                        file_mime_type = "text/plain"
-                    }
+IndexWriter open_index_writer()
+{
+    new IndexWriter(indexDirectory, new IndexWriterConfig(Version.LUCENE_CURRENT, new StandardAnalyzer(Version.LUCENE_CURRENT)))
+}
 
+def void index_package(Map info, package_dir)
+{
+    // name
+    // spec
+    // release
+    // build files dir path
+
+    def package_doc = new Document()
+
+    def typeField = new Field("type", "package", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    typeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+    package_doc.add(typeField)
+
+    def releaseField = new Field("release", release_id, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    releaseField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+    package_doc.add(releaseField)
+
+    def packageNameField = new Field("package.name", info.name, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    packageNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+    package_doc.add(packageNameField)
+
+    def specField = new Field("package.spec", info.spec, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    specField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+    package_doc.add(specField)
+
+    String build_dir_name = info.build_dir
+
+    def build_files_dir = new File(package_dir, build_dir_name)
+
+    def packagePathField = new Field("package.build_files_path", build_files_dir.absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    packagePathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+    package_doc.add(packagePathField)
+
+    add_package_list_fields(package_doc, package_dir, "buildrequires.txt", "buildrequires")
+    add_package_list_fields(package_doc, package_dir, "requires.txt", "requires")
+    add_package_list_fields(package_doc, package_dir, "provides.txt", "provides")
+
+    // requires*        trim ' = ...' and unique
+    // buildrequires*   "  "
+    // provides*        "  "
+    // each file:
+    //    mime (as guessed by file command)
+    //    extension
+
+    def fileTypeField = new Field("type", "file", Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    fileTypeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+
+    def build_files_list = new File(package_dir, "file_types.txt").readLines().collect { it.trim() }.grep()
+
+    build_files_list.each { String file_path_and_type ->
+        // Mime type follows the null char.
+        def file_mime_type = file_path_and_type.substring(file_path_and_type.indexOf(0) + (" : ".length()))
+
+        // We don't really need the guessed charset.
+        if (file_mime_type.indexOf(';') > 0) {
+            file_mime_type = file_mime_type.substring(0, file_mime_type.indexOf(';'))
+        }
+
+        def build_file_path = file_path_and_type.substring(0, file_path_and_type.indexOf(0))
+
+        try {
+            def build_file = new File(package_dir, build_file_path)
+
+            build_file_path = build_file_path.substring(build_dir_name.length() + 1)
+
+            if (file_mime_type.startsWith("text") && build_file.exists()) {
+                def file_name = build_file.name
+                def extension = file_name.contains(' ') ? file_name.toLowerCase().substring(file_name.lastIndexOf(' ') + 1) : ".none."
+
+                if ((file_mime_type == "text/html") && (extension in ["c", "h", "cpp", "hpp", "cxx", "hxx", "py", "java"])) {
+                    file_mime_type = "text/plain"
+                }
+
+                def file_size = build_file.size()
+
+                def build_file_doc = new Document()
+
+                package_doc.add(fileTypeField)
+                package_doc.add(releaseField)
+                package_doc.add(packageNameField)
+
+                def filePathField = new Field("file.path", build_file_path, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                filePathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                package_doc.add(filePathField)
+
+                def fileNameField = new Field("file.name", file_name, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                fileNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                package_doc.add(fileNameField)
+
+                def fileExtField = new Field("file.extension", extension, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                fileExtField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                package_doc.add(fileExtField)
+
+                def fileMimeTypeField = new Field("file.mime_type", file_mime_type, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                fileMimeTypeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                package_doc.add(fileMimeTypeField)
+
+                def fileSizeField = new NumericField("file.size", Field.Store.YES, false)
+                fileSizeField.setLongValue(file_size)
+                package_doc.add(fileSizeField)
+
+                if (file_size < FILE_SIZE_LIMIT) {
                     def file_contents = build_file.text
 
                     if (file_mime_type in ["text/html", "text/xhtml"]) {
                         file_contents = html_to_text(file_contents)
                     }
 
-                    def build_file_doc = new Document()
-
-                    package_doc.add(fileTypeField)
-                    package_doc.add(releaseField)
-                    package_doc.add(packageNameField)
-
-                    def filePathField = new Field("file.path", build_file_path, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-                    filePathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                    package_doc.add(filePathField)
-
-                    def fileNameField = new Field("file.name", file_name, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-                    fileNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                    package_doc.add(fileNameField)
-
-                    def fileExtField = new Field("file.extension", extension, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-                    fileExtField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                    package_doc.add(fileExtField)
-
-                    def fileMimeTypeField = new Field("file.mime_type", file_mime_type, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-                    fileMimeTypeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                    package_doc.add(fileMimeTypeField)
-
                     def textField = new Field("contents", file_contents, Field.Store.NO, Field.Index.ANALYZED)
                     textField.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
                     build_file_doc.add(textField)
-
-                    writer.addDocument(build_file_doc)
-
-                    ++file_count
                 }
-            } catch (Exception e) {
-                e.printStackTrace(System.out)
+
+                indexWriter.addDocument(build_file_doc)
+
+                ++file_count
             }
+        } catch (Exception e) {
+            e.printStackTrace(System.out)
         }
-
-        writer.addDocument(package_doc);
-
-        ++package_count
     }
+
+    indexWriter.addDocument(package_doc)
+    
+    indexWriter.commit()
+
+    ++package_count
 }
-
-writer.close()
-
-println "Added ${package_count} packages with ${file_count} files to index."
 
 def void add_package_list_fields(Document package_doc, File package_dir, String package_list_file_name, String field_name)
 {
