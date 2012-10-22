@@ -73,7 +73,8 @@ indexWriter = open_index_writer()
 package_count = 0
 file_count = 0
 
-packages_dir.eachFileMatch(~"^a[ab].*") { package_dir ->
+// Debug just a few: packages_dir.eachFileMatch(~"^a[ab].*") { package_dir ->
+packages_dir.eachFile { package_dir ->
     if (package_dir.isDirectory()) {
 //        println package_dir
         def info = read_package_info_fields(package_dir)
