@@ -73,7 +73,8 @@ indexWriter = open_index_writer()
 package_count = 0
 file_count = 0
 
-// Debug just a few: packages_dir.eachFileMatch(~"^a[ab].*") { package_dir ->
+// Debug just a few:
+//packages_dir.eachFileMatch(~"^ant.*") { package_dir ->
 packages_dir.eachFile { package_dir ->
     if (package_dir.isDirectory()) {
 //        println package_dir
@@ -191,10 +192,14 @@ def void index_package(Map info, File package_dir)
 
 //            // Strip off "BUILD/" subdir prefix. We've added it back on above for the package.build_files_path field.
 //            build_file_path = build_file_path.substring(build_dir_name.length() + 1)
-                def build_file_path_prefix = build_file.parentFile.absolutePath.substring(build_files_dir.absolutePath.length() + File.separator.length())
+//                if (build_file.parentFile.absolutePath.length() <= build_files_dir.absolutePath.length()) println build_file.absolutePath
+                def build_file_path_prefix = build_file.parentFile.absolutePath.substring(build_files_dir.absolutePath.length())
+                if (build_file_path_prefix.startsWith(File.separator)) build_file_path_prefix = build_file_path_prefix.substring(File.separator.length())
 
                 def file_name = build_file.name
-                def extension = file_name.contains('.') ? file_name.toLowerCase().substring(file_name.lastIndexOf('.') + 1) : ""
+
+                // Don't let initial period mark an extension.
+                def extension = file_name.lastIndexOf('.') > 0 ? file_name.toLowerCase().substring(file_name.lastIndexOf('.') + 1) : ""
 
                 if ((file_mime_type == "text/html") && (extension in ["c", "h", "cpp", "hpp", "cxx", "hxx", "py", "java"])) {
                     file_mime_type = "text/plain"
