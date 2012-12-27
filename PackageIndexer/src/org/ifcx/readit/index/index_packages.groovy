@@ -65,6 +65,16 @@ FILE_SIZE_LIMIT = 1000000
 //assert ["FOO=123", "FOO", "123"] == ("FOO=123" =~ fvpat)[0]
 //assert ["FOO='123'", "FOO", "123"] == ("FOO='123'" =~ fvpat)[0] as List
 
+shebang_pattern = ~/(?s)^#!\s*(\S+).*$/
+
+//assert "/bin/sh" == extract_shebang_interpreter("#!/bin/sh a b ")
+//assert "/bin/sh" == extract_shebang_interpreter("#! /bin/sh")
+//assert "/bin/sh" == extract_shebang_interpreter("#! /bin/sh\n")
+//assert "/bin/sh" == extract_shebang_interpreter("#! /bin/sh\n".readLines()[0])
+//assert "/bin/sh" == extract_shebang_interpreter(new File('/mnt/LINUX_RPM/packages/eclipse-gef/BUILD/gef-3.8.0/org.eclipse.gef.repository/publish.sh').text)
+//assert !extract_shebang_interpreter("# !/bin/sh a b ")
+//return null
+
 indexDirectory = FSDirectory.open(index_dir)
 
 indexWriter = open_index_writer()
@@ -137,7 +147,11 @@ def void index_package(Map info, File package_dir)
     packageNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
     package_doc.add(packageNameField)
 
-    def specField = new Field("package.spec", new File(info.RPM_SPEC_DIR, info.spec).absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+    def packageNamexField = new Field("package.namex", info.name, Field.Store.NO, Field.Index.ANALYZED)
+    packageNamexField.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+    package_doc.add(packageNamexField)
+
+    def specField = new Field("package.spec", new File((String) info.RPM_SPEC_DIR, (String) info.spec).absolutePath, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
     specField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
     package_doc.add(specField)
 
@@ -184,17 +198,11 @@ def void index_package(Map info, File package_dir)
             file_mime_type = file_mime_type.substring(0, file_mime_type.indexOf(';'))
         }
 
-        if (file_mime_type != 'inode/directory') {
+        if (!file_mime_type.startsWith('inode/')) {
             def build_file_path = file_path_and_type.substring(0, file_path_and_type.indexOf(0))
 
             try {
                 def build_file = new File(package_dir, build_file_path)
-
-//            // Strip off "BUILD/" subdir prefix. We've added it back on above for the package.build_files_path field.
-//            build_file_path = build_file_path.substring(build_dir_name.length() + 1)
-//                if (build_file.parentFile.absolutePath.length() <= build_files_dir.absolutePath.length()) println build_file.absolutePath
-                def build_file_path_prefix = build_file.parentFile.absolutePath.substring(build_files_dir.absolutePath.length())
-                if (build_file_path_prefix.startsWith(File.separator)) build_file_path_prefix = build_file_path_prefix.substring(File.separator.length())
 
                 def file_name = build_file.name
 
@@ -207,6 +215,10 @@ def void index_package(Map info, File package_dir)
 
                 def file_size = build_file.exists() ? build_file.size() : -1
 
+                if ( build_file_path.startsWith(File.separator))  build_file_path =  build_file_path.substring(File.separator.length())
+                // Strip off "BUILD/" subdir prefix. We've added it back on above for the package.build_files_path field.
+                build_file_path = build_file_path.substring(build_dir_name.length() + File.separator.length())
+
                 def build_file_doc = new Document()
 
                 build_file_doc.add(fileTypeField)
@@ -217,13 +229,25 @@ def void index_package(Map info, File package_dir)
                 filePathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
                 build_file_doc.add(filePathField)
 
-                def filePathPrefixField = new Field("file.path_prefix", build_file_path_prefix, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
-                filePathPrefixField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
-                build_file_doc.add(filePathPrefixField)
+                def fileBuildPathField = new Field("file.build_path", build_file_path, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                fileBuildPathField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                build_file_doc.add(fileBuildPathField)
+
+                def fileBuildPathxField = new Field("file.build_pathx", build_file_path, Field.Store.NO, Field.Index.ANALYZED)
+                fileBuildPathxField.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+                build_file_doc.add(fileBuildPathxField)
+
+//                def filePathPrefixField = new Field("file.path_prefix",  build_file_path, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+//                filePathPrefixField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+//                build_file_doc.add(filePathPrefixField)
 
                 def fileNameField = new Field("file.name", file_name, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
                 fileNameField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
                 build_file_doc.add(fileNameField)
+
+                def fileNamexField = new Field("file.namex", file_name, Field.Store.NO, Field.Index.ANALYZED)
+                fileNamexField.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+                build_file_doc.add(fileNamexField)
 
                 def fileExtField = new Field("file.extension", extension, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
                 fileExtField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
@@ -233,12 +257,24 @@ def void index_package(Map info, File package_dir)
                 fileMimeTypeField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
                 build_file_doc.add(fileMimeTypeField)
 
-                def fileSizeField = new NumericField("file.size", Field.Store.YES, false)
+                def fileSizeField = new NumericField("file.size", Field.Store.YES, true)
                 fileSizeField.setLongValue(file_size)
                 build_file_doc.add(fileSizeField)
 
-                if (file_mime_type.startsWith("text") && (file_size >= 0) && (file_size < FILE_SIZE_LIMIT)) {
+                if (file_mime_type.startsWith("text") && (file_size > 0) && (file_size < FILE_SIZE_LIMIT)) {
                     def file_contents = build_file.text
+
+                    def shebang_interpreter = extract_shebang_interpreter(file_contents)
+
+                    if (shebang_interpreter) {
+                        def shebangField = new Field("file.shebang", shebang_interpreter, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS)
+                        shebangField.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY)
+                        build_file_doc.add(shebangField)
+
+                        def shebangxField = new Field("file.shebangx", shebang_interpreter, Field.Store.NO, Field.Index.ANALYZED)
+                        shebangxField.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+                        build_file_doc.add(shebangxField)
+                    }
 
                     if (file_mime_type in ["text/html", "text/xhtml"]) {
                         file_contents = html_to_text(file_contents)
@@ -265,7 +301,7 @@ def void index_package(Map info, File package_dir)
     ++package_count
 }
 
-def void add_package_list_fields(Document package_doc, File package_dir, String package_list_file_name, String field_name)
+def add_package_list_fields(Document package_doc, File package_dir, String package_list_file_name, String field_name)
 {
     def packages = new File(package_dir, package_list_file_name).readLines().collect { package_name_from_selector(it) }.grep()
 
@@ -276,9 +312,15 @@ def void add_package_list_fields(Document package_doc, File package_dir, String 
     }
 }
 
-def void package_name_from_selector(String it)
+def package_name_from_selector(String it)
 {
     (it.contains(" ") ? it.substring(0, it.indexOf(' ')) : it).trim()
+}
+
+def extract_shebang_interpreter(String file_contents)
+{
+    def matcher = file_contents =~ shebang_pattern
+    matcher.matches() ? matcher.group(1) : null
 }
 
 def read_package_info_fields(File package_info_dir)
