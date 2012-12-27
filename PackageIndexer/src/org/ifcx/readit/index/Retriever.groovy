@@ -1,223 +1,167 @@
 package org.ifcx.readit.index
 
-/*
-import edu.stanford.nlp.pipeline.Annotation
-import edu.stanford.nlp.io.IOUtils
-import edu.stanford.nlp.util.CoreMap
-import edu.stanford.nlp.ling.CoreAnnotations
-import edu.stanford.nlp.dcoref.CorefChain
-import edu.stanford.nlp.dcoref.CorefCoreAnnotations
-import edu.stanford.nlp.trees.semgraph.SemanticGraph
-import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
-import edu.stanford.nlp.ling.IndexedWord
-import edu.stanford.nlp.semgrex.SemgrexPattern
-*/
-import java.util.regex.Pattern
+import org.apache.lucene.analysis.standard.StandardAnalyzer
+import org.apache.lucene.document.Document
+import org.apache.lucene.index.Term
+import org.apache.lucene.queryParser.QueryParser
+import org.apache.lucene.search.BooleanClause
+import org.apache.lucene.search.BooleanQuery
+import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.search.NumericRangeQuery
+import org.apache.lucene.search.Query
+import org.apache.lucene.search.Sort
+import org.apache.lucene.search.TermQuery
+import org.apache.lucene.store.FSDirectory
+import org.apache.lucene.util.Version
 
 class Retriever
 {
-/*
-    File preprocessed_dir
-    ExtractionRules extraction_rules = new ExtractionRulesWithPatterns()
-    List<String> all_slot_labels
-    List<Slot> _slots
-    String query_name
-    File documents_file
-    Inference inference = new Inference()
+    def index_dir = new File('/mnt/LINUX_RPM/index')
 
-    Map<Slot, Set<Answer>> all_answers = [:].withDefault { [] as Set<Answer> }
+//    println "index_dir = ${index_dir}"
 
-    static dependenciesAnnotationClazz = SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation.class
+    def indexDirectory = FSDirectory.open(index_dir)
 
-    def NOISY = 0
+    def searcher = new IndexSearcher(indexDirectory)
+    def analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT)
+    def parser = new QueryParser(Version.LUCENE_CURRENT, "contents", analyzer)
 
-    Retriever()
+    List<String> list_packages()
     {
-    }
+        def query = new TermQuery(new Term('type', 'package'))
 
-    Retriever(File query_folder, File preprocessed_dir)
-    {
-        this.preprocessed_dir = preprocessed_dir
-        documents_file = new File(query_folder, 'documents.txt')
-        query_name = new File(query_folder, 'name.txt').text.trim()
-        slots = new File(query_folder, 'slots.txt').readLines()
-    }
+        def hits = searcher.search(query, 10000 /*, Sort.INDEXORDER*/)
 
-    List<Slot> getSlots()
-    {
-        _slots
-    }
-
-    void setSlots(List<String> slot_names)
-    {
-        all_slot_labels = slot_names
-        _slots = slot_names.collect { Model.slots[it] }.grep { it }
-    }
-
-    def do_all_documents()
-    {
-        documents_file.eachLine {  do_document(new File(it).name - ~/\.sgm$/) }
-
-        all_answers
-    }
-
-    Map<Slot, Set<Answer>> do_document(def doc_id)
-    {
-        def preprocessed_file = new File(preprocessed_dir, doc_id + ".sgm.ser.gz")
-
-        if (!(preprocessed_file.exists() ))  {
-            System.err.println("file ${preprocessed_file} doesn't exist")
-            return null
+        hits.scoreDocs.collect { hit ->
+            def doc = searcher.doc(hit.doc)
+            doc['package.name']
         }
+    }
 
-        Annotation annotation = null
+    List<Document> list_readmes(String file_name)
+    {
+        def queryType = new TermQuery(new Term('type', 'file'))
+        def queryName = new TermQuery(new Term('file.name', file_name))
+        def querySize = NumericRangeQuery.newLongRange('file.size', 0, 0, true, true)
+//        def querySize = NumericRangeQuery.newLongRange('file.size', 1, NumericRangeQuery.LONG_POSITIVE_INFINITY, true, true)
+        def query = new BooleanQuery()
+        query.add(queryType, BooleanClause.Occur.MUST)
+        query.add(queryName, BooleanClause.Occur.MUST)
+        query.add(querySize, BooleanClause.Occur.MUST_NOT)
+
+        def hits = searcher.search(query, 10000 /*, Sort.INDEXORDER*/)
+
+        hits.scoreDocs.collect { hit -> searcher.doc(hit.doc) }
+    }
+
+    List<Document> list_package_files(String package_id)
+    {
+        def queryType = new TermQuery(new Term('type', 'file'))
+        def queryName = new TermQuery(new Term('package.name', package_id))
+        def query = new BooleanQuery()
+        query.add(queryType, BooleanClause.Occur.MUST)
+        query.add(queryName, BooleanClause.Occur.MUST)
+
+        def hits = searcher.search(query, 10000 /*, Sort.INDEXORDER*/)
+
+        hits.scoreDocs.collect { hit -> searcher.doc(hit.doc) }
+    }
+
+    Document package_doc(String package_id)
+    {
+        def queryType = new TermQuery(new Term('type', 'package'))
+        def queryName = new TermQuery(new Term('package.name', package_id))
+        def query = new BooleanQuery()
+        query.add(queryType, BooleanClause.Occur.MUST)
+        query.add(queryName, BooleanClause.Occur.MUST)
+
+        def hits = searcher.search(query, 3)
+
+        switch (hits.totalHits) {
+            case 0:
+                return null
+            case 1:
+                return searcher.doc(hits.scoreDocs[0].doc)
+            default:
+                println "More than one hit in package_doc for $package_id"
+                return null
+        }
+    }
+
+    def package_info(String package_id, String field)
+    {
+        def queryType = new TermQuery(new Term('type', 'package'))
+        def queryName = new TermQuery(new Term('package.name', package_id))
+        def query = new BooleanQuery()
+        query.add(queryType, BooleanClause.Occur.MUST)
+        query.add(queryName, BooleanClause.Occur.MUST)
+
+        def hits = searcher.search(query, 3)
+
+        switch (hits.totalHits) {
+            case 0:
+                return null
+            case 1:
+                return searcher.doc(hits.scoreDocs[0].doc).get(field)
+            default:
+                println "More than one hit in package_info for $package_id"
+                return null
+        }
+    }
+
+    def spec_for_package(String package_id)
+    {
+        String spec_file_path = package_info(package_id, 'package.spec')
+
+        if (!spec_file_path) return null
 
         try {
-            annotation = IOUtils.readObjectFromFile(preprocessed_file)
-        } catch (Error e) {
-            // We catch Error here even though it is usually a bad idea because of some (a)
-            // preprocessed file that causes us to get an OutOfMemory error when reading it.
-            // Problem files:
-            //      output/preprocessed/eng-WL-11-174598-12964778.sgm.ser.gz
-            //      output/preprocessed/eng-WL-11-174598-12964978.sgm.ser.gz
-            e.printStackTrace()
-            System.err.println "Error reading object file: ${preprocessed_file}"
-            return null
-        } catch (Exception e) {
-            // java.io.UTFDataFormatException from output/preprocessed/APW_ENG_20080505.0655.LDC2009T13.sgm.ser.gz
-            e.printStackTrace()
-            System.err.println "Exception reading object file: ${preprocessed_file}"
+            def spec_text = new File(spec_file_path).text
+
+            return RPM_SPEC.parse(spec_text)
+        } catch (IOException ex) {
+            ex.printStackTrace()
             return null
         }
-
-        List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class)
-
-        Map<Integer, CorefChain> coref_chains = annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class)
-
-        coref_chains.each { coref_num, CorefChain coref_chain ->
-            if (NOISY > 1) {
-                coref_chain.corefMentions.each { log.info it }
-            }
-
-            if (coref_chain_mentions_name(coref_chain, query_name)) {
-                if (NOISY == 1) {
-                    coref_chain.corefMentions.each { log.info it }
-                }
-
-                coref_chain.corefMentions.each { mention ->
-                    def sentence = sentences[mention.sentNum - 1]
-                    SemanticGraph g = sentence.get(dependenciesAnnotationClazz)
-
-                    // Don't change shared annotation.
-                    g = new SemanticGraph(g)
-
-                    Set<IndexedWord> vertexSet = g.vertexSet()
-
-                    // Mark the nodes for all tokens (that have one) except the head token as being {features:mentionToken}.
-                    ((mention.startIndex..<mention.endIndex)-[mention.headIndex]).each { x ->
-                        // If we're using collapsed dependencies (as we are), not all tokens will have a node in the graph.
-                        (vertexSet.find { it.index() == x })?.set(CoreAnnotations.FeaturesAnnotation, 'mentionToken')
-                    }
-
-                    // Mark the node for the head token as {features:mention}.
-                    vertexSet.find { it.index() == mention.headIndex }?.set(CoreAnnotations.FeaturesAnnotation, 'mention')
-
-                    // Need to make a copy to work around an inconsistency internal to SemanticGraph when applying new annotations.
-                    g = new SemanticGraph(g)
-
-                    if (g.getRoots().size()) {
-                        def answer_map = do_sentence(doc_id, mention.sentNum, sentence, g)
-
-                        answer_map.each {
-                            slot, Set<Answer> answers -> all_answers[slot] = all_answers[slot] + answers
-                        }
-                    }
-                }
-            }
-        }
-
-        all_answers
     }
 
-    Set<Integer> sentence_numbers_with_mentions(CorefChain coref_chain, def sentences)
-    {
-        def sentences_nums = [] as Set<Integer>
-
-        coref_chain.corefMentions.each { mention ->
-            def sentence = sentences[mention.sentNum - 1]
-            SemanticGraph g = sentence.get(dependenciesAnnotationClazz)
-            Set<IndexedWord> vertexSet = g.vertexSet()
-
-            // Mark the nodes for all tokens (that have one) except the head token as being {features:mentionToken}.
-            ((mention.startIndex..<mention.endIndex)-[mention.headIndex]).each { x ->
-                // If we're using collapsed dependencies (as we are), not all tokens will have a node in the graph.
-                (vertexSet.find { it.index() == x })?.set(CoreAnnotations.FeaturesAnnotation, 'mentionToken')
-            }
-
-            // Mark the node for the head token as {features:mention}.
-            vertexSet.find { it.index() == mention.headIndex }?.set(CoreAnnotations.FeaturesAnnotation, 'mention')
-
-            sentences_nums << mention.sentNum
-        }
-
-        sentences_nums
-    }
-
-    static def coref_chain_mentions_name(CorefChain coref_chain, String name)
-    {
-        def pattern = ~(/(?i)[^\p{L}]*(?:-LRB-.*-RRB-[^\p{L}]*)?/ + Pattern.quote(name) + /(?:\s*'s)?(?:[^\p{L}]*-LRB-.*-RRB-)?[^\p{L}]*//*
-)
-        // http://localhost:5000/query/SF101/document/eng-WL-11-174592-12943032
-        // http://localhost:5000/query/SF124/document/eng-WL-11-174597-12966129
-//        def mentions = coref_chain.corefMentions.collect { it.mentionSpan.toLowerCase() }
-//        mentions.find { it.indexOf(name) >= 0 } ? true : false
-        coref_chain.corefMentions.find { pattern.matcher(it.mentionSpan).matches() } ? true : false
-    }
-
-    Map<Slot, Set<Answer>> do_sentence(doc_id, sentence_num, CoreMap sentence, SemanticGraph g)
-    {
-        Map<Slot, Set<Answer>> slot_to_answers = slots.collectEntries { slot ->
-            Set<Answer> answers = [] as Set<Answer>
-
-            extraction_rules.rules[slot].each { pattern ->
-                def some = slot.extract(slot, doc_id, sentence_num, sentence, g, SemgrexPattern.compile(pattern).matcher(g))
-                some.each { Answer answer ->
-                    answer.pattern = pattern
-
-                    if (!slot.redundant(query_name, answer)) { answers.add(answer) }
-                }
-            }
-
-            [slot, answers]
-        }
-
-        slot_to_answers.keySet().each { Slot slot ->
-            Set<Answer> inferred_answers = [] as Set<Answer>
-            switch (slot) {
-                case Model.PER_CITIES_OF_RESIDENCE :
-                    slot_to_answers[slot].each { Answer answer ->
-                        inferred_answers.addAll(inference.expand_city(answer, Model.PER_STATEORPROVINCES_OF_RESIDENCE, Model.PER_COUNTRIES_OF_RESIDENCE))
-                    }
-                    break
-// These should be inferred as well, but they weren't included in the system at D4 deadline so can't use 'em yet.
-//                case Model.PER_CITY_OF_BIRTH :
-//                    slot_to_answers[slot].each { Answer answer ->
-//                        inferred_answers.addAll(inference.expand_city(answer, Model.PER_STATEORPROVINCE_OF_BIRTH, Model.PER_COUNTRY_OF_BIRTH))
-//                    }
-//                    break
-//                case Model.PER_CITY_OF_DEATH :
-//                    slot_to_answers[slot].each { Answer answer ->
-//                        inferred_answers.addAll(inference.expand_city(answer, Model.PER_STATEORPROVINCE_OF_DEATH, Model.PER_COUNTRY_OF_DEATH))
-//                    }
-//                    break
-            }
-            inferred_answers.each { Answer answer ->
-                if (slot_to_answers.containsKey(answer.slot)) slot_to_answers[answer.slot].add(answer)
-            }
-        }
-
-        slot_to_answers
-    }
-*/
+//    def list(Map<String, String> terms)
+//    {
+//        def query = new BooleanQuery()
+//        while (args && (args.head().startsWith('--'))) {
+//            def field = args.remove(0).substring(2)
+//            def value = args.remove(0)
+//
+//            def occur = BooleanClause.Occur.MUST
+//            if (field.startsWith('-')) {
+//                field = field.substring(1)
+//                occur = BooleanClause.Occur.MUST_NOT
+//            }
+//
+//            query.add(field == 'subject' ? parser.getFieldQuery('subject', value, true) : new TermQuery(new Term(field, value)), occur)
+//            if (args) {
+//                query.add(parser.parse(args.join(' ')), BooleanClause.Occur.MUST)
+//            }
+//
+//            do_query(query)
+//
+//        }
+//
+//    def do_query(Query query)
+//    {
+//        println query
+//
+//        def hits = searcher.search(query, 200)
+//
+//        println "${hits.totalHits} hits"
+//
+//        for (hit in hits.scoreDocs) {
+//            println "-----"
+//
+//            def doc = searcher.doc(hit.doc)
+//            doc.fields.each { println "${it.name()}:${it.stringValue()}" }
+//            println()
+//        }
+//    }
 
 }

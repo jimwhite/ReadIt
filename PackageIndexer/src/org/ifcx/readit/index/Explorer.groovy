@@ -3,25 +3,20 @@ package org.ifcx.readit.index
 import com.bleedingwolf.ratpack.Ratpack
 import com.bleedingwolf.ratpack.RatpackServlet
 import groovy.xml.StreamingMarkupBuilder
-//import edu.stanford.nlp.pipeline.Annotation
-//import edu.stanford.nlp.io.IOUtils
-//import edu.stanford.nlp.util.CoreMap
-//import edu.stanford.nlp.ling.CoreAnnotations
-//import edu.stanford.nlp.dcoref.CorefChain
-//import edu.stanford.nlp.dcoref.CorefCoreAnnotations
-//import edu.stanford.nlp.trees.semgraph.SemanticGraph
-//import edu.stanford.nlp.trees.semgraph.SemanticGraphCoreAnnotations
-//import edu.stanford.nlp.ling.IndexedWord
-//import edu.stanford.nlp.trees.semgraph.SemanticGraphEdge
+import org.apache.lucene.document.Document
+
+import javax.servlet.http.HttpServletRequest
 
 queries_dir = new File('output/queries')
 preprocessed_dir = new File('output/preprocessed')
 
 def app = Ratpack.app {
 
-    def query_ids = new File('output/queries').listFiles()*.name.sort()
-    def query_memo = [:].withDefault { query_info(it) }
-    def document_memo = [:].withDefault { document_info(it) }
+    def retriever = new Retriever()
+
+    def package_names = retriever.list_packages()
+//    def query_memo = [:].withDefault { query_info(it) }
+//    def document_memo = [:].withDefault { document_info(it) }
 
 //    def extraction_rules = new ExtractionRulesWithPatterns()
 
@@ -32,17 +27,168 @@ def app = Ratpack.app {
     get("/") {
         new StreamingMarkupBuilder().bind {
             html {
-                head { title('EITI Query Explorer') }
+                head { title('ReadIt Query Explorer') }
                 body {
-                    p "EITI Query Explorer"
+                    p "ReadIt Query Explorer"
+                    p { a(href:'/packages', 'Packages')  }
+                    p { a(href:'/readmes/INSTALL', 'READMES')  }
+                }
+            }
+        }.toString()
+    }
+
+    get("/packages") {
+        new StreamingMarkupBuilder().bind {
+            html {
+                head { title('Packages') }
+                body {
+                    p 'Packages'
 //                    p "Queries"
                     p {
-                        query_ids.each { id -> a(href:href_query(id), id); span(' ') ; span(query_memo[id].name ) ; br() }
+//                        package_names.each { id -> a(href:href_query(id), id); span(' ') ; span(query_memo[id].name ) ; br() }
+                        package_names.each { package_name -> a(href:href_package(package_name), package_name) ; br() }
                     }
                 }
             }
         }.toString()
     }
+
+    get("/readmes/:file_name") {
+        def file_name = urlparams.file_name ?: "INSTALL"
+        new StreamingMarkupBuilder().bind {
+            html {
+                head { title('READMES') }
+                body {
+                    p 'READMES'
+                    p {
+                        def readmes = retriever.list_readmes(file_name)
+                        readmes.each { Document doc ->
+                            span(doc['package.name'] + ' ' + doc['file.name']); span(' '); a(href:href_file(doc['mime.type'], doc['file.path']), doc['file.build_path']); br()
+                        }
+                    }
+                }
+            }
+        }.toString()
+    }
+
+    def file_path_pattern = ~'/file/([^/]*)/([^/]*)(.*)'
+
+    get("/file/.*")
+    {
+        HttpServletRequest req = request
+
+        def (_, mime_type, mime_subtype, file_path) = (req.pathInfo =~ file_path_pattern)[0]
+//        file_path = file_path.replaceAll("^//", "/")
+//        println "$mime_type/$mime_subtype $file_path"
+
+        response.setHeader('Content-Type', mime_type + '/' + mime_subtype)
+
+        new File(file_path).text
+    }
+
+    get("/package/:package_id")
+            {
+                def package_id = urlparams.package_id
+                def file_docs = retriever.list_package_files(package_id)
+                file_docs = file_docs.sort { it.get('file.shebang')+ '~' + it.get('file.mime_type') + '~' + it.get('file.name') }
+                new StreamingMarkupBuilder().bind {
+                    html {
+                        head { title('Package ' + package_id) }
+                        body {
+                            p 'Package ' + package_id
+                            table {
+                                tr {
+                                    td('Name')
+                                    td(package_id)
+                                }
+                                tr {
+                                    td('Spec')
+                                    td {
+                                        def link = href_package_field(package_id, 'package.spec')
+                                        a(href:link, link)
+                                        span(' - ')
+                                        a(href:href_package_spec(package_id), 'parsed')
+                                    }
+                                }
+                                tr {
+                                    td('Expanded Spec')
+                                    td {
+                                        def link = href_package_field(package_id, 'package.spec_expanded')
+                                        a(href:link, link)
+                                    }
+                                }
+                                tr {
+                                    td('Files')
+                                    td(file_docs.size())
+                                }
+                            }
+                            p()
+                            table {
+                                file_docs.each { doc ->
+                                    tr {
+                                        def link = href_file(doc.get('file.mime_type'), doc.get('file.path'))
+                                        td(doc.get('file.mime_type'))
+                                        td(doc.get('file.shebang'))
+                                        td(doc.get('file.name'))
+                                        td(doc.get('file.size'))
+                                        td {
+                                            a(href:link, doc.get('file.build_path'))
+//                                            a(href:link, doc.get('file.path'))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }.toString()
+            }
+
+    get("/package/:package_id/:field")
+            {
+                def package_id = urlparams.package_id
+                def field = urlparams.field
+                def package_doc = retriever.package_doc(package_id)
+                def file_path = package_doc?.get(field)
+                println file_path
+                if (file_path) {
+                    response.setHeader('Content-Type', 'text/x-specfile')
+                    new File(file_path).text
+                } else {
+                    "Missing doc or field for $package_id $field"
+                }
+            }
+
+    get("/spec/:package_id")
+            {
+                def package_id = urlparams.package_id
+                def spec = retriever.spec_for_package(package_id)
+                if (spec) {
+                    new StreamingMarkupBuilder().bind {
+                        html {
+                            head { title('Package ' + package_id) }
+                            body {
+                                p 'Package ' + package_id
+                                spec.keySet().sort().each { subpackage_name ->
+                                    h2(package_id + '-' + subpackage_name)
+                                    def section_values = spec[subpackage_name]
+                                    table(border:'1') {
+                                        section_values.keySet().sort { it.token }.each { section ->
+                                            tr {
+                                                td(section.name())
+                                                td {
+                                                    pre(section_values[section])
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }.toString()
+                } else {
+                    "RPM SPEC parse failed for $package_id"
+                }
+            }
 
     get("/query/:query_id")
     {
@@ -76,7 +222,7 @@ def app = Ratpack.app {
 //                    pre query.slots.join('\n')
 //                    pre query.doc_ids.join('\n')
 
-                    def retriever = new Retriever(query.folder, preprocessed_dir)
+//                    def retriever = new Retriever(query.folder, preprocessed_dir)
                     def rules = retriever.extraction_rules.rules
                     println rules
                     def answer_map = retriever.do_all_documents()
@@ -154,54 +300,6 @@ def app = Ratpack.app {
 
                     def annotation = document.annotation
 
-//                    if (annotation) {
-//                        List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class)
-//
-//                        Map<Integer, CorefChain> coref_chains = annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class)
-//
-//                        def retriever = new Retriever(query.folder, preprocessed_dir)
-//
-//                        def query_coref_chains = coref_chains.values().findAll { Retriever.coref_chain_mentions_name(it, query.name) }
-//
-//                        def query_match_sentence_nums = query_coref_chains.collectMany { retriever.sentence_numbers_with_mentions(it, sentences) }
-//
-//                        if (query_coref_chains) {
-//                            h3 "Query Name Mentions"
-//                            p { query_match_sentence_nums.each { span(it) ; span(' ') } }
-//
-//                            query_coref_chains.each { CorefChain coref_chain  ->
-//                                p {
-//                                    coref_chain.corefMentions.each { div(it as String) }
-//                                }
-//                            }
-//                        } else {
-//                            h3 "Query Name Not Matched in DCoRef Mentions"
-//                        }
-//
-//                        h3 "Sentences"
-//
-//                        sentences.eachWithIndex { sentence, x ->
-//                            def sent_num = x + 1
-//                            p {
-//                                if (sent_num in query_match_sentence_nums) {
-//                                    span { em('*') }
-//                                    span ' '
-//                                }
-//                                a(href:href_sentence(query, document.id, sent_num), sent_num as String)
-//                                span ': '
-//                                span sentence as String
-//                            }
-//                        }
-//                        h3 "Coref Chains"
-//                        coref_chains.each { coref_num, CorefChain coref_chain  ->
-//                            p {
-////                                span coref_num
-////                                span ' '
-//                                coref_chain.corefMentions.each { div(it as String) }
-//                            }
-//                        }
-//
-//                    }
                 }
             }
         }.toString()
@@ -401,6 +499,26 @@ def retrive_one_pattern(slot, pattern, doc_id, sent_num, sentence, g)
     retriever.do_sentence(doc_id, sent_num, sentence, g)
 }
 
+String href_package(String package_id)
+{
+    '/package/'+package_id
+}
+
+String href_package_field(String package_id, String field)
+{
+    '/package/'+package_id+'/'+field
+}
+
+String href_package_spec(String package_id)
+{
+    '/spec/'+package_id
+}
+
+String href_file(String mime_type, String file_path)
+{
+    '/file/' + mime_type + file_path
+}
+
 String href_query(String query_id)
 {
     '/query/'+query_id
@@ -447,70 +565,3 @@ def document_info(String doc_id)
 //
 //    [id: doc_id, annotation:annotation]
 }
-
-//class ExplorerUtils
-//{
-//    static public String toString(SemanticGraph g)
-//    {
-//        Collection<IndexedWord> rootNodes = g.getRoots();
-//        if (rootNodes.isEmpty()) {
-//            // Shouldn't happen, but return something!
-//            return g.toString("readable");
-//        }
-//
-//        StringBuilder sb = new StringBuilder();
-//        Set<IndexedWord> used = new HashSet<IndexedWord>();
-//        for (IndexedWord root : rootNodes) {
-//            if (root != null) {
-//                sb.append("root -> $root ${show_ner(root.get(CoreAnnotations.NamedEntityTagAnnotation))} ${root.get(CoreAnnotations.FeaturesAnnotation) ?: ''}\n");
-//                recToString(g, root, sb, 1, used);
-//            }
-//        }
-//        Set<IndexedWord> nodes = new HashSet<IndexedWord>(g.vertexSet());
-//        nodes.removeAll(used);
-//        while (!nodes.isEmpty()) {
-//            IndexedWord node = nodes.iterator().next();
-//            sb.append(node).append("\n");
-//            recToString(g, node, sb, 1, used);
-//            nodes.removeAll(used);
-//        }
-//        return sb.toString();
-//    }
-//
-//    // helper for toString()
-//    static  void recToString(SemanticGraph g, IndexedWord curr, StringBuilder sb, int offset, Set<IndexedWord> used)
-//    {
-//        used.add(curr);
-//        List<SemanticGraphEdge> edges = g.outgoingEdgeList(curr);
-//        Collections.sort(edges);
-//        for (SemanticGraphEdge edge : edges) {
-//            IndexedWord target = edge.getTarget();
-////            sb.append(space(2 * offset)).append("-> ").append(target).append(" (").append(edge.getRelation()).append(")\n");
-//            sb.append(space(2 * offset))
-//            def features = target.get(CoreAnnotations.FeaturesAnnotation)
-////            print features ;println features?.class
-//            sb.append("${edge.getRelation()} -> $target ${show_ner(target.get(CoreAnnotations.NamedEntityTagAnnotation))} ${features ? features : ''}\n");
-//            if (!used.contains(target)) { // recurse
-//                recToString(g, target, sb, offset + 1, used);
-//            }
-//        }
-//    }
-//
-////    static String ne_label(IndexedWord target)
-////    {
-////        def neTag = target.get(CoreAnnotations.NamedEntityTagAnnotation)
-////
-////        neTag ? neTag
-////    }
-//
-//    static String show_ner(ner) { ner != 'O' ? ner : '' }
-//
-//    static String space(int width)
-//    {
-//        StringBuilder b = new StringBuilder();
-//        for (int i = 0; i < width; i++) {
-//            b.append(" ");
-//        }
-//        return b.toString();
-//    }
-//}
