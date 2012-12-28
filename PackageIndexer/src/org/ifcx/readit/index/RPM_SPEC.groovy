@@ -60,6 +60,12 @@ public class RPM_SPEC
             package_to_section_values[current_package] = [:]
         }
 
+        if (current_section == Section.CHANGELOG) {
+            def lines = section_text.readLines()
+            if (lines.size() > 10) lines = lines[0..9]  + ["..."]
+            section_text = lines.join('\n')
+        }
+
         package_to_section_values[current_package][current_section] = section_text
     }
 
