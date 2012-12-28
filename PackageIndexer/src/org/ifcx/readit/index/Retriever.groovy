@@ -111,10 +111,23 @@ class Retriever
 
     def spec_for_package(String package_id)
     {
+//        String spec_file_path = package_info(package_id, 'package.spec_expanded')
         String spec_file_path = package_info(package_id, 'package.spec')
 
         if (!spec_file_path) return null
 
+        try {
+            def spec_text = new File(spec_file_path).text
+
+            return RPM_SPEC.parse(spec_text)
+        } catch (IOException ex) {
+            ex.printStackTrace()
+            return null
+        }
+    }
+
+    def parse_spec_file(spec_file_path)
+    {
         try {
             def spec_text = new File(spec_file_path).text
 

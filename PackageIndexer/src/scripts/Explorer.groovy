@@ -1,28 +1,36 @@
-package org.ifcx.readit.index
+package scripts
 
 import com.bleedingwolf.ratpack.Ratpack
 import com.bleedingwolf.ratpack.RatpackServlet
 import groovy.xml.StreamingMarkupBuilder
 import org.apache.lucene.document.Document
+import org.ifcx.readit.index.ExtractionRules
+import org.ifcx.readit.index.Model
+import org.ifcx.readit.index.Retriever
+import org.ifcx.readit.index.Slot
 
 import javax.servlet.http.HttpServletRequest
 
 queries_dir = new File('output/queries')
 preprocessed_dir = new File('output/preprocessed')
 
-def app = Ratpack.app {
-
-    def retriever = new Retriever()
-
-    def package_names = retriever.list_packages()
+//def app = Ratpack.app {
+//
+//    def retriever = new Retriever()
+//
+//    def package_names = retriever.list_packages()
 //    def query_memo = [:].withDefault { query_info(it) }
 //    def document_memo = [:].withDefault { document_info(it) }
 
 //    def extraction_rules = new ExtractionRulesWithPatterns()
 
-    def new_slot = ''
-    def new_pattern = ''
-    def filter_values = true
+retriever = new Retriever()
+
+package_names = retriever.list_packages()
+
+new_slot = ''
+new_pattern = ''
+filter_values = true
 
     get("/") {
         new StreamingMarkupBuilder().bind {
@@ -89,6 +97,7 @@ def app = Ratpack.app {
     get("/package/:package_id")
             {
                 def package_id = urlparams.package_id
+                def package_doc = retriever.package_doc(package_id)
                 def file_docs = retriever.list_package_files(package_id)
                 file_docs = file_docs.sort { it.get('file.shebang')+ '~' + it.get('file.mime_type') + '~' + it.get('file.name') }
                 new StreamingMarkupBuilder().bind {
@@ -107,7 +116,7 @@ def app = Ratpack.app {
                                         def link = href_package_field(package_id, 'package.spec')
                                         a(href:link, link)
                                         span(' - ')
-                                        a(href:href_package_spec(package_id), 'parsed')
+                                        a(href:href_parse_spec(package_id, package_doc.get('package.spec')), 'parsed')
                                     }
                                 }
                                 tr {
@@ -115,6 +124,8 @@ def app = Ratpack.app {
                                     td {
                                         def link = href_package_field(package_id, 'package.spec_expanded')
                                         a(href:link, link)
+                                        span(' - ')
+                                        a(href:href_parse_spec(package_id, package_doc.get('package.spec_expanded')), 'parsed')
                                     }
                                 }
                                 tr {
@@ -167,7 +178,7 @@ def app = Ratpack.app {
                         html {
                             head { title('Package ' + package_id) }
                             body {
-                                p 'Package ' + package_id
+                                h1 'Package ' + package_id
                                 spec.keySet().sort().each { subpackage_name ->
                                     h2(package_id + '-' + subpackage_name)
                                     def section_values = spec[subpackage_name]
@@ -190,7 +201,40 @@ def app = Ratpack.app {
                 }
             }
 
-    get("/query/:query_id")
+get("/showspec")
+        {
+            def package_id = params.package_id
+            def spec_file_path = params.spec_file_path
+            def spec = retriever.parse_spec_file(spec_file_path)
+            if (spec) {
+                new StreamingMarkupBuilder().bind {
+                    html {
+                        head { title('Package ' + package_id) }
+                        body {
+                            h1 'Package ' + package_id
+                            spec.keySet().sort().each { subpackage_name ->
+                                h2(package_id + '-' + subpackage_name)
+                                def section_values = spec[subpackage_name]
+                                table(border:'1') {
+                                    section_values.keySet().sort { it.token }.each { section ->
+                                        tr {
+                                            td(section.name())
+                                            td {
+                                                pre(section_values[section])
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }.toString()
+            } else {
+                "RPM SPEC parse failed for $package_id"
+            }
+        }
+
+get("/query/:query_id")
     {
         def query = query_memo[urlparams.query_id] // query_info(urlparams.query_id)
 
@@ -331,8 +375,6 @@ def app = Ratpack.app {
 
         sentence_response(query, document, sent_num, new_slot, new_pattern, filter_values)
     }
-
-}
 
 def sentence_response(query, document, sent_num, String new_slot, String new_pattern, boolean filter_values)
 {
@@ -488,8 +530,6 @@ def sentence_response(query, document, sent_num, String new_slot, String new_pat
     }.toString()
 }
 
-RatpackServlet.serve(app)
-
 def retrive_one_pattern(slot, pattern, doc_id, sent_num, sentence, g)
 {
     def retriever = new Retriever()
@@ -512,6 +552,11 @@ String href_package_field(String package_id, String field)
 String href_package_spec(String package_id)
 {
     '/spec/'+package_id
+}
+
+String href_parse_spec(String package_id, String spec_file_path)
+{
+    "/showspec?package_id=${package_id}&spec_file_path=${spec_file_path}"
 }
 
 String href_file(String mime_type, String file_path)
