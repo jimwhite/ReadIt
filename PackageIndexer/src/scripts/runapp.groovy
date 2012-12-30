@@ -89,11 +89,11 @@ class AppRunner extends DirWatcher {
 
   def killApp() {
       try {
-          println "Stopping server..."
+//          println "Stopping server..."
           server.stop()
           server = null
       } catch (Exception ex) {
-          println "server.stop failed:"
+          println "server.stop failed!"
           ex.printStackTrace()
       }
   }

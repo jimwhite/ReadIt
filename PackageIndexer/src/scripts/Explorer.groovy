@@ -62,7 +62,7 @@ filter_values = true
     }
 
     get("/readmes/:file_name") {
-        def file_name = urlparams.file_name ?: "INSTALL"
+        def file_name = urlparams.file_name ?: "README"
         new StreamingMarkupBuilder().bind {
             html {
                 head { title('READMES') }
@@ -71,7 +71,7 @@ filter_values = true
                     p {
                         def readmes = retriever.list_readmes(file_name)
                         readmes.each { Document doc ->
-                            span(doc['package.name'] + ' ' + doc['file.name']); span(' '); a(href:href_file(doc['mime.type'], doc['file.path']), doc['file.build_path']); br()
+                            span(doc['package.name'] + ' ' + doc['file.name']); span(' '); a(href:href_file(doc['file.mime_type'], doc['file.path']), doc['file.build_path']); br()
                         }
                     }
                 }
@@ -98,7 +98,7 @@ filter_values = true
             {
                 def package_id = urlparams.package_id
                 def package_doc = retriever.package_doc(package_id)
-                def file_docs = retriever.list_package_files(package_id)
+                def file_docs = retriever.list_package_files(package_id, true)
                 file_docs = file_docs.sort { it.get('file.shebang')+ '~' + it.get('file.mime_type') + '~' + it.get('file.name') }
                 new StreamingMarkupBuilder().bind {
                     html {
@@ -146,6 +146,10 @@ filter_values = true
                                             a(href:link, doc.get('file.build_path'))
 //                                            a(href:link, doc.get('file.path'))
                                         }
+                                        td {
+                                            a(href:href_search(doc.get('file.path'), package_doc.get('package.spec_expanded'), "GNU ed is a line-oriented text editor." ), "search")
+                                        }
+
                                     }
                                 }
                             }
@@ -232,6 +236,33 @@ get("/showspec")
             } else {
                 "RPM SPEC parse failed for $package_id"
             }
+        }
+
+get("/search")
+        {
+            def file_path = params.file_path
+            def spec_file_path = params.spec_file_path
+            def subpackage_id = params.subpackage_id
+            def search_field = params.field
+            def slop = (params.slop ?: "0") as int
+
+//            def spec = retriever.parse_spec_file(spec_file_path)
+//            if (spec) {
+                new StreamingMarkupBuilder().bind {
+                    html {
+                        head { title('Searching in ' + subpackage_id) }
+                        body {
+                            h1 'Package ' + subpackage_id
+                            def ranges = retriever.searchInFile(file_path, search_field, slop)
+                            ranges.each {
+                                p(it)
+                            }
+                        }
+                    }
+                }.toString()
+//            } else {
+//                "RPM SPEC parse failed for $package_id"
+//            }
         }
 
 get("/query/:query_id")
@@ -557,6 +588,11 @@ String href_package_spec(String package_id)
 String href_parse_spec(String package_id, String spec_file_path)
 {
     "/showspec?package_id=${package_id}&spec_file_path=${spec_file_path}"
+}
+
+String href_search(String file_path, String spec_file_path, String field)
+{
+    "/search?file_path=${file_path}&spec_file_path=${spec_file_path}&field=${field}"
 }
 
 String href_file(String mime_type, String file_path)

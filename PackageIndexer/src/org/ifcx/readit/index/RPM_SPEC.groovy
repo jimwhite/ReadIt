@@ -22,7 +22,8 @@ public class RPM_SPEC
 
     // Match section tokens in reverse order of length so prefixes don't make a partial match.
     // Can't rely on a trailing space since there may be none.
-    static section_pattern = ~/^%(${token_to_section.keySet().sort { -it.length() }.join('|')})\s*+([^-\s]*+)\s*+(.*)$/
+    static section_pattern = ~/^%(${token_to_section.keySet().sort { -it.length() }.join('|')})\s*+(?:-f\s+\S+\s*)?([^-\s]*+)\s*+(.*)$/
+//    static section_pattern = ~/^%(${token_to_section.keySet().sort { -it.length() }.join('|')})\s*+((?:-f\s+\S+\s*+)?[^-\s]*+)\s*+(.*)$/
 
     def current_section = Section.PACKAGE
     def current_package = ""
