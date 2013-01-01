@@ -27,6 +27,8 @@ import org.apache.lucene.search.spans.Spans
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.util.Version
 
+import gate.Factory
+
 class Retriever
 {
     def index_dir = new File('/mnt/LINUX_RPM/index')
@@ -173,9 +175,9 @@ class Retriever
 
 //        terms.add(new FieldMaskingSpanQuery(new SpanTermQuery(new Term('file.path', file_path)), 'contents'))
 
-        SpanNearQuery query1 = new SpanNearQuery(terms as SpanQuery[], slop, true)
+        SpanNearQuery query = new SpanNearQuery(terms as SpanQuery[], slop, true)
 
-        SpanQuery query = new SpanMultiTermQueryWrapper()
+//        SpanQuery query = new SpanMultiTermQueryWrapper()
 
         println query
 

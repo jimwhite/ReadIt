@@ -13,12 +13,15 @@
       <root url="jar://$PROJECT_DIR$/lib/xml-apis.jar!/" />
       <root url="jar://$PROJECT_DIR$/lib/xercesImpl.jar!/" />
       <root url="jar://$PROJECT_DIR$/lib/nekohtml.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/lucene-spellchecker-3.5.0.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
       <root url="file://$PROJECT_DIR$/../../Apache/Lucene/lucene-3.5.0/src/java" />
       <root url="file://$PROJECT_DIR$/../../Apache/Lucene/lucene-3.5.0/src/tools/java" />
       <root url="file://$PROJECT_DIR$/../../ifcx/thirdparty/nekohtml-1.9.14/src" />
+      <root url="jar://$PROJECT_DIR$/lib/jetty-util-6.1.26-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jetty-6.1.26-sources.jar!/" />
     </SOURCES>
   </library>
 </component>

@@ -1,0 +1,50 @@
+<component name="libraryTable">
+  <library name="gate">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/bin/gate.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/apache-mime4j-core.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/bcprov-jdk15.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/bcmail-jdk15.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/aopalliance.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/apache-mime4j-dom.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/xstream.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/xpp3.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/xmlunit.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/xmlbeans.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/woodstox-core-lgpl.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/tika-parsers.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/tika-core.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/stax2-api.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/spring-core.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/spring-beans.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/spring-aop.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/poi.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/poi-scratchpad.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/poi-ooxml.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/poi-ooxml-schemas.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/pdfbox.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/nekohtml.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/metadata-extractor.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/jempbox.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/jdom.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/jaxen.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/java-getopt.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/gate-compiler-jdt.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/gate-asm.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/fontbox.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/flying-saucer-core.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/dom4j.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-codec.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-compress.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-io.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-lang.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-logging.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/log4j.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../../GATE/release-7.1/src" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/java-getopt.jar!/" />
+    </SOURCES>
+  </library>
+</component>
