@@ -1,4 +1,5 @@
 #!/usr/bin/env groovy
+package scripts
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.index.IndexWriter
@@ -17,7 +18,6 @@ import org.apache.xerces.xni.XMLLocator
 import org.apache.xerces.xni.NamespaceContext
 import org.apache.xerces.xni.Augmentations
 import org.apache.xerces.xni.XNIException
-import org.cyberneko.html.xercesbridge.XercesBridge
 import org.apache.xerces.xni.XMLString
 import org.apache.xerces.xni.QName
 import org.apache.xerces.xni.XMLAttributes

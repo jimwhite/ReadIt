@@ -1,2 +1,2 @@
 #!/bin/bash
-CLASSPATH=$(printf "%s:" lib/*)src JAVA_OPTS="-Xmx1400M -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=25" groovy src/org/ifcx/readit/index/index_packages.groovy
+CLASSPATH=$(printf "%s:" lib/*)src JAVA_OPTS="-Xmx1400M -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=25" groovy src/scripts.index_packages.groovy
