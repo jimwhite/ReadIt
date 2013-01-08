@@ -25,17 +25,24 @@ def analyzer = new WhitespaceAnalyzer()
 //QVariant objects.
 //""", analyzer)
 
-def ta = new File('/mnt/LINUX_RPM/packages/ed/BUILD/ed-1.5/README').text
+//def ta = new File('/mnt/LINUX_RPM/packages/ed/BUILD/ed-1.5/README').text
+//def a = new Sequence(ta, analyzer)
+//def b = new Sequence("""Ed is a line-oriented text editor, used to create, display, and modify
+//text files (both interactively and via shell scripts).  For most
+//purposes, ed has been replaced in normal usage by full-screen editors
+//(emacs and vi, for example).
+//
+//Ed was the original UNIX editor, and may be used by some programs.  In
+//general, however, you probably don't need to install it and you probably
+//won't use it.
+//
+//""", analyzer)
+
+def ta = new File('/mnt/LINUX_RPM/packages/eekboard/BUILD/eekboard-1.0.7/README').text
 def a = new Sequence(ta, analyzer)
-def b = new Sequence("""Ed is a line-oriented text editor, used to create, display, and modify
-text files (both interactively and via shell scripts).  For most
-purposes, ed has been replaced in normal usage by full-screen editors
-(emacs and vi, for example).
 
-Ed was the original UNIX editor, and may be used by some programs.  In
-general, however, you probably don't need to install it and you probably
-won't use it.
-
+def b = new Sequence("""eekboard is a virtual keyboard software package, including a set of
+tools to implement desktop virtual keyboards.
 """, analyzer)
 
 println b

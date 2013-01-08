@@ -10,6 +10,7 @@
     <orderEntry type="library" name="lib" level="project" />
     <orderEntry type="library" name="groovy-1.8.8" level="application" />
     <orderEntry type="library" name="gate" level="project" />
+    <orderEntry type="library" name="xmlwise-debug-1_2" level="project" />
   </component>
 </module>
 

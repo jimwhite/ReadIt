@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="xmlwise-debug-1_2">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/xmlwise-debug-1_2.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$PROJECT_DIR$/lib/xmlwise-debug-1_2.jar!/docs/api" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>
