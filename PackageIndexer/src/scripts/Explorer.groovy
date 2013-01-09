@@ -294,7 +294,7 @@ get("/showspec")
     }
 }
 
-MAX_SEQUENCE_LENGTH = 100
+MAX_SEQUENCE_LENGTH = 150
 
 get("/search")
 {
@@ -335,8 +335,9 @@ get("/search")
                 title('Searching in ' + subpackage_id)
                 style (type:"text/css", """
 table { border : 1; margin : 1em ; outline-width : thin ; outline-style : dashed }
-#td { text-align : center; padding : 3en ; border-style : none dashed ; border-width : thin ; margin : 1en ; border-spacing : 1em }
-td { text-align : center; border-style : none dashed ; border-width : thin ; border-spacing : 25px }
+td { text-align : center; border-style : none dashed ; border-width : thin ; padding : 0 0.5em }
+td.label { text-align : left; border-style : none; padding : 0 0.5em }
+td.gap { background : LightGrey }
 #.pair { margin : 1em }
 """)
             }
@@ -402,21 +403,29 @@ td { text-align : center; border-style : none dashed ; border-width : thin ; bor
                         div('class':'pair-div') {
                             table('class':'pair'/*, border:'1'*/) {
                                 tr {
-                                    td(name1)
+                                    td('class':'label', name1)
                                     for (Token t : subsequence1) {
-                                        td(t == Alignment.GAP ? '' : t.toString())
+                                        if (t == Alignment.GAP) {
+                                            td('class':'gap')
+                                        } else {
+                                            td(t.toString())
+                                        }
                                     }
                                 }
 
                                 tr {
-                                    td()
+                                    td('class':'label', )
                                     submarkup.each { td(it) }
                                 }
 
                                 tr {
-                                    td(name2)
+                                    td('class':'label', name2)
                                     for (Token t : subsequence2) {
-                                        td(t == Alignment.GAP ? '' : t.toString())
+                                        if (t == Alignment.GAP) {
+                                            td('class':'gap')
+                                        } else {
+                                            td(t.toString())
+                                        }
                                     }
                                 }
                             }
