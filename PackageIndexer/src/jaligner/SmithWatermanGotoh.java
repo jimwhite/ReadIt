@@ -150,8 +150,8 @@ public final class SmithWatermanGotoh {
 		logger.info("Started...");
 		long start = System.currentTimeMillis();
 
-		Token[] a1 = s1.tokenArray();
-        Token[] a2 = s2.tokenArray();
+		Token[] a1 = s1.getTokens();
+        Token[] a2 = s2.getTokens();
 
 		int m = a1.length + 1;
 		int n = a2.length + 1;
@@ -260,8 +260,8 @@ public final class SmithWatermanGotoh {
 		logger.info("Started...");
 		long start = System.currentTimeMillis();
 
-		Token[] a1 = s1.tokenArray();
-        Token[] a2 = s2.tokenArray();
+		Token[] a1 = s1.getTokens();
+        Token[] a2 = s2.getTokens();
 
 		int n = a2.length + 1;
 

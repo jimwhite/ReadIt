@@ -23,7 +23,6 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.tokenattributes.*;
-import org.apache.lucene.index.Payload;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -176,7 +175,7 @@ public class Sequence implements Serializable {
 	 * @return sequence length
 	 */
 	public int length() {
-        return tokenArray().length;
+        return getTokens().length;
 	}
 
 //	/**
@@ -207,9 +206,13 @@ public class Sequence implements Serializable {
 	 * 
 	 * @return array of chars.
 	 */
-	public Token[] tokenArray() {
+	public Token[] getTokens() {
         return tokens;
 	}
+
+    public void setTokens(Token[] t) {
+        tokens = t;
+    }
     
     /**
      * Returns the sequence id and the sequence string

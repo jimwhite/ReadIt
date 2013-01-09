@@ -33,22 +33,22 @@ public class Pair extends Format {
 	/**
 	 * Name width 
 	 */
-    private static final int NAME_WIDTH = 13;
+    public static final int NAME_WIDTH = 13;
 	
     /**
      * Position width
      */
-    private static final int POSITION_WIDTH = 6;
+    public static final int POSITION_WIDTH = 6;
 	
     /**
      * Sequence width
      */
-    private static final int SEQUENCE_WIDTH = 12;
+    public static final int SEQUENCE_WIDTH = 12;
 	
     /**
      * Space
      */
-    private static final String BLANK = " ";
+    public static final String BLANK = " ";
     
     /**
      * Constructor
@@ -157,8 +157,8 @@ public class Pair extends Format {
 	 * @param name name to adjusted
 	 * @return adjusted name
 	 */
-	private String adjustName(String name) {
-		StringBuffer buffer = new StringBuffer ( );
+	public static String adjustName(String name) {
+		StringBuilder buffer = new StringBuilder( );
 		
 		if (name.length() > NAME_WIDTH) {
 			buffer.append(name.substring(0, NAME_WIDTH));
@@ -176,9 +176,9 @@ public class Pair extends Format {
 	 * @param position
 	 * @return string
 	 */
-	private String adjustPosition(String position) {
-		StringBuffer buffer1 = new StringBuffer( );
-		StringBuffer buffer2 = new StringBuffer( );
+	public static String adjustPosition(String position) {
+		StringBuilder buffer1 = new StringBuilder( );
+		StringBuilder buffer2 = new StringBuilder( );
 		
 		if (position.length() > POSITION_WIDTH) {
 			buffer1.append(position.substring(position.length() - POSITION_WIDTH, position.length()));

@@ -53,7 +53,7 @@ public class LevenshteinDistance implements Comparator<Token>
         int d = computeDistance(o1.toString(), o2.toString());
         double avg_length = (o1.length() + o2.length()) / 2.0;
         double norm = d / avg_length;
-        int similarity = 10 - (int) (10 * norm);
+        int similarity = 10 - (int) (20 * norm);
         return similarity;
     }
 }
