@@ -48,7 +48,7 @@ tools to implement desktop virtual keyboards.
 println b
 
 
-def alignment = SmithWatermanGotoh.align(a, b, new JaroWinklerSimilarity(), 5, 4)
+def alignment = SmithWatermanGotoh.align(a, b, new JaroWinklerSimilarity(), 5, 4, 10)
 
 println alignment.summary
 println new Pair().format(alignment)

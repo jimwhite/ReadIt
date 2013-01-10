@@ -326,8 +326,8 @@ get("/search")
     def b = new Sequence(text, analyzer)
     b.id = file_path
 
-//    def alignment = SmithWatermanGotoh.align(a, b, new JaroWinklerSimilarity(), 10, 6)
-    def alignment = SmithWatermanGotoh.align(a, b, new LevenshteinDistance(), 8, 4)
+//    def alignment = SmithWatermanGotoh.align(a, b, new JaroWinklerSimilarity(), 10, 6, 10)
+    def alignment = SmithWatermanGotoh.align(a, b, new LevenshteinDistance(), 8, 4, 10)
 
     new StreamingMarkupBuilder().bind {
         html {
@@ -358,8 +358,8 @@ td.gap { background : LightGrey }
                     String name1 = Pair.adjustName(alignment.getName1());
                     String name2 = Pair.adjustName(alignment.getName2());
 
-                    int oldPosition1, position1 = 1 + alignment.getStart1();
-                    int oldPosition2, position2 = 1 + alignment.getStart2();
+                    int position1 = 1 + alignment.getStart1();
+                    int position2 = 1 + alignment.getStart2();
 
                     Token[] subsequence1;
                     Token[] subsequence2;
@@ -369,9 +369,6 @@ td.gap { background : LightGrey }
                     Token c1, c2;
 
                     for (int i = 0; i * Pair.SEQUENCE_WIDTH < length; i++) {
-
-                        oldPosition1 = position1;
-                        oldPosition2 = position2;
 
                         line = ((i + 1) * Pair.SEQUENCE_WIDTH) < length ? (i + 1) * Pair.SEQUENCE_WIDTH: length;
 

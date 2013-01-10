@@ -52,7 +52,7 @@ import java.util.logging.Logger;
  */
 
 public final class SmithWatermanGotoh {
-	/**
+    /**
 	 * Hidden constructor
 	 */
 	private SmithWatermanGotoh() {
@@ -84,7 +84,8 @@ public final class SmithWatermanGotoh {
 	 * @see Matrix
 	 */
 	public static Alignment align(Sequence s1, Sequence s2, Comparator<Token> matrix,
-			float o, float e) {
+			float o, float e, int IDENTITY_THRESHOLD)
+    {
 		logger.info("Started...");
 		long start = System.currentTimeMillis();
 
@@ -112,7 +113,7 @@ public final class SmithWatermanGotoh {
 		Cell cell = SmithWatermanGotoh.construct(s1, s2, matrix, o, e,
 				pointers, sizesOfVerticalGaps, sizesOfHorizontalGaps);
 		Alignment alignment = SmithWatermanGotoh.traceback(s1, s2, matrix,
-				pointers, cell, sizesOfVerticalGaps, sizesOfHorizontalGaps);
+				pointers, cell, sizesOfVerticalGaps, sizesOfHorizontalGaps, IDENTITY_THRESHOLD);
 		alignment.setOriginalSequence1(s1);
 		alignment.setOriginalSequence2(s2);
 		alignment.setMatrix(matrix);
@@ -256,7 +257,7 @@ public final class SmithWatermanGotoh {
 	 */
 	private static Alignment traceback(Sequence s1, Sequence s2, Comparator<Token> m,
 			byte[] pointers, Cell cell, short[] sizesOfVerticalGaps,
-			short[] sizesOfHorizontalGaps) {
+			short[] sizesOfHorizontalGaps, int IDENTITY_THRESHOLD) {
 		logger.info("Started...");
 		long start = System.currentTimeMillis();
 
@@ -309,16 +310,19 @@ public final class SmithWatermanGotoh {
 				k -= n;
 				reversed1[len1++] = c1;
 				reversed2[len2++] = c2;
-				if (c1 == c2) {
+                int comparison = m.compare(c1, c2);
+				if (comparison >= IDENTITY_THRESHOLD) {
 					reversed3[len3++] = Markups.IDENTITY;
 					identity++;
 					similarity++;
-				} else if (m.compare(c1, c2) > 0) {
-					reversed3[len3++] = Markups.SIMILARITY;
-					similarity++;
 				} else {
-					reversed3[len3++] = Markups.MISMATCH;
-				}
+                    if (comparison > 0) {
+                        reversed3[len3++] = Markups.SIMILARITY;
+                        similarity++;
+                    } else {
+                        reversed3[len3++] = Markups.MISMATCH;
+                    }
+                }
 				break;
 			case Directions.LEFT:
 				for (int l = 0, len = sizesOfHorizontalGaps[k + j]; l < len; l++) {
