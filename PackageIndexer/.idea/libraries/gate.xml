@@ -40,11 +40,15 @@
       <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-lang.jar!/" />
       <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/commons-logging.jar!/" />
       <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/log4j.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/plugins/Alignment/aligntools.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/plugins/Groovy/groovy-gate.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
       <root url="file://$PROJECT_DIR$/../../GATE/release-7.1/src" />
       <root url="jar://$PROJECT_DIR$/../../GATE/release-7.1/lib/java-getopt.jar!/" />
+      <root url="file://$PROJECT_DIR$/../../GATE/release-7.1/plugins/Alignment/src" />
+      <root url="file://$PROJECT_DIR$/../../GATE/release-7.1/plugins/Groovy/src" />
     </SOURCES>
   </library>
 </component>
