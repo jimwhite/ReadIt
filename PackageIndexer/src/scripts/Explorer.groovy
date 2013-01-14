@@ -83,7 +83,7 @@ get("/file/.*")
 {
     HttpServletRequest req = request
 
-    def (_, mime_type, mime_subtype, file_path) = (req.pathInfo =~ file_path_pattern)[0]
+    def (_X, mime_type, mime_subtype, file_path) = (req.pathInfo =~ file_path_pattern)[0]
     //        file_path = file_path.replaceAll("^//", "/")
     //        println "$mime_type/$mime_subtype $file_path"
 

@@ -191,7 +191,7 @@ def void index_package(Map info, File package_dir)
 
     build_files_list.each { String file_path_and_type ->
         // Mime type follows the null char.
-        def file_mime_type = file_path_and_type.substring(file_path_and_type.indexOf(0) + (" : ".length()))
+        def file_mime_type = file_path_and_type.substring(file_path_and_type.indexOf(0) + ": ".length() + 1)
 
         // We don't really need the guessed charset.
         if (file_mime_type.indexOf(';') > 0) {
