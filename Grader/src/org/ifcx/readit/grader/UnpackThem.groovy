@@ -1,3 +1,4 @@
+#!/usr/bin/env /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
 package org.ifcx.readit.grader
 
 def submissions_dir = new File('.')
@@ -7,20 +8,29 @@ println submissions_dir.absolutePath
 submissions_dir.eachDir { dir ->
     println "$dir ${dir.name}"
 
-    unpack_it(dir)
+    def student_id = dir.name
+    def content_dir = new File(dir, 'content')
+    unpack_it(student_id, dir, content_dir)
+
+    def report_file = new File(dir, 'report.groovy')
+    report_file.withPrintWriter { report_writer ->
+        locate_files(student_id, content_dir.absoluteFile, report_writer)
+    }
+    report_file.setExecutable(true)
+    evaluate(report_file)
 }
 
-def unpack_it(File dir)
+def unpack_it(String student_id, File dir, File content_dir)
 {
     def environment = System.getenv().entrySet().grep { it.key =~ /PATH/ }.collect { it.key + '=' + it.value }
 
 //    println environment
 
-    def tar_files = dir.listFiles().grep { it.name =~ /(?i)\.(tar|tgz)/ }.sort { - it.lastModified }
+    def tar_files = dir.listFiles().grep { it.name =~ /(?i)\.(tar|tgz)/ }.sort {  -it.lastModified() }
 
     if (tar_files) {
-        println tar_files
-        def content_dir = new File(dir, 'content')
+//        println tar_files
+
         // Don't overwrite content if already there.
         if (content_dir.exists()) {
             println "Content already unpacked."
@@ -29,16 +39,26 @@ def unpack_it(File dir)
             if (unpack_dir.exists()) unpack_dir.delete()
             unpack_dir.mkdir()
             def command = ['tar', 'xf', tar_files[0].absolutePath]
-            println command.join(' ')
+//            println command.join(' ')
             def proc = command.execute(environment, unpack_dir)
             println (proc.text)
-            if (proc.exitValue()) { println "Error: ${proc.exitValue()}"}
-            while (unpack_dir.listFiles().size() == 1) {
-                def files = unpack_dir.listFiles()
-                if (files[0].isDirectory()) unpack_dir = files[0]
+            if (proc.exitValue()) { println "Error: ${proc.exitValue()}" }
+
+            def files = unpack_dir.listFiles()
+
+            // Find the top-level directory of the tar file.  Skip levels with just a single directory.
+            while (files.size() == 1 && files[0].isDirectory()) {
+                unpack_dir = files[0]
+                files = unpack_dir.listFiles()
             }
-            if (!unpack_dir.renameTo(content_dir)) {
-                println "RENAME FAILED!"
+
+            if (files.size() < 1) {
+                println "Can't unpack tar file or it is empty!"
+            } else {
+                // Move the top-level of the tar file to the 'content' directory.
+                if (!unpack_dir.renameTo(content_dir)) {
+                    println "RENAME FAILED!"
+                }
             }
         }
     } else {
@@ -47,21 +67,54 @@ def unpack_it(File dir)
 
 }
 
-//File find_tar_file(File dir)
-//{
-////    File tar_file = null
-////    dir.eachFileMatch(~/(?i)\.(tar|tgz)/) {  if (!tar_file || (tar_file.lastModified < it.lastModified)) tar_file = it }
-////    tar_file
-//
-//    dir.listFiles().grep { it.name =~ /(?i)\.(tar|tgz)/ }.sort { - it.lastModified }
-//}
-//
-//def escape_path_for_quotes(File file)
-//{
-//    file.path.replaceAll(/([\\'])/, /\\$1/)
-//}
-//
-//def escape_path_for_quotes(String path)
-//{
-//    path.replaceAll(/([\\'])/, /\\$1/)
-//}
+def locate_files(String student_id, File content_dir, PrintWriter report)
+{
+    report << """#!/usr/bin/env /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
+// Student id $student_id
+println "Student id: $student_id"
+
+student_id='$student_id'
+content_path='''$content_dir'''
+content_dir=new File(content_path)
+report_config=[student_id:student_id, content_path:content_path /*, content_dir:content_dir*/]
+"""
+
+    def file_list = []
+    content_dir.eachFileRecurse { file_list << it }
+
+    file_list.sort(true) { -it.lastModified() }
+
+    ["build_kNN.sh"].each { filename ->
+        File best_match = null
+        def matches = []
+
+        file_list.each { File f ->
+            if (f.name == filename && !best_match) best_match = f
+            if (f.name.equalsIgnoreCase(filename)) matches << f
+        }
+
+        if (!best_match && matches) best_match = matches[0]
+
+        if (best_match && !best_match.canExecute()) {
+            if (matches.find { it.canExecute() }) {
+                report << "println 'Best match not executable: $best_match, using first executable near match.'"
+                best_match = matches.find { it.canExecute() }
+            } else {
+                report << "println 'Not executable: $best_match'"
+            }
+        }
+
+        if (matches.size() > 1) { report << "println '${matches.size()} matches for $filename'" }
+
+        report << """
+// $matches
+// {matches.parentFile}
+// {matches.collect { new File(it.parentFile.absoluteFile, it.absolutePath)}}
+report_config['$filename']= ${best_match ? "'''${best_match}'''" : null }
+"""
+    }
+
+    report << """
+println report_config
+"""
+}
