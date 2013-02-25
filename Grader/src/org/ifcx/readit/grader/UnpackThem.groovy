@@ -6,19 +6,23 @@ def submissions_dir = new File('.')
 
 println submissions_dir.absolutePath
 
-submissions_dir.eachDir { dir ->
-    println "$dir ${dir.name}"
+new File(submissions_dir, 'run_all.sh').withPrintWriter { run_script ->
+    submissions_dir.eachDir { dir ->
+        println "$dir ${dir.name}"
 
-    def student_id = dir.name
-    def content_dir = new File(dir, 'content')
-    unpack_it(student_id, dir, content_dir)
+        def student_id = dir.name
+        def content_dir = new File(dir, 'content')
+        unpack_it(student_id, dir, content_dir)
 
-    def report_file = new File(dir, 'report.groovy')
-    report_file.withPrintWriter { report_writer ->
-        locate_files(student_id, content_dir.absoluteFile, report_writer)
+        def report_file = new File(dir, 'report.groovy')
+        report_file.withPrintWriter { report_writer ->
+            locate_files(student_id, content_dir.absoluteFile, report_writer)
+        }
+        report_file.setExecutable(true)
+        evaluate(report_file)
+
+        run_script.println "condor_run ~/ReadIt/Grader/src/org/ifcx/readit/grader/RunIt.groovy $report_file &"
     }
-    report_file.setExecutable(true)
-    evaluate(report_file)
 }
 
 def unpack_it(String student_id, File dir, File content_dir)
@@ -93,7 +97,7 @@ report_config=[student_id:student_id, content_path:content_path, content_dir:con
     content_dir.eachFileRecurse { file_list << it }
     file_list.sort(true) { -it.lastModified() }
 
-    ["build_kNN.sh"].each { filename ->
+    ["build_kNN.sh", "rank_feat_by_chi_square.sh"].each { filename ->
         File best_match = null
         def matches = []
 
@@ -116,7 +120,7 @@ report_config=[student_id:student_id, content_path:content_path, content_dir:con
 
         if (matches.size() > 1) report.println "println '${matches.size()} matches for $filename'"
 
-        matches.each { report.println "${it == best_match ? '' : '// '}report_config['$filename']='${it.absolutePath}' ${it.canExecute() ? '' : '// NOT EXECUTABLE' }"  }
+        matches.each { report.println "${it == best_match ? '' : '// '}report_config['$filename']=new File('${it.absolutePath}') ${it.canExecute() ? '' : '// NOT EXECUTABLE' }"  }
     }
 
     report << """
