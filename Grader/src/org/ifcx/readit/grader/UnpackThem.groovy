@@ -1,5 +1,8 @@
-#!/usr/bin/env /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
+#!/usr/bin/env groovy
+// #!/usr/bin/env GROOVY_HOME=/home2/jimwhite/Projects/Groovy/groovy-1.8.6 /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
 package org.ifcx.readit.grader
+
+println 'hello'
 
 def submissions_dir = new File('.')
 
@@ -38,10 +41,20 @@ def unpack_it(String student_id, File dir, File content_dir)
             def unpack_dir = new File(dir, 'unpacked')
             if (unpack_dir.exists()) unpack_dir.delete()
             unpack_dir.mkdir()
+
             def command = ['tar', 'xf', tar_files[0].absolutePath]
+
 //            println command.join(' ')
             def proc = command.execute(environment, unpack_dir)
-            println (proc.text)
+            def stdout = new StringBuilder()
+            def stderr = new StringBuilder()
+            proc.consumeProcessOutput(stdout, stderr)
+            proc.waitFor()
+            if (stdout) println stdout
+            if (stderr) {
+            	println "ERROR:"
+            	println stderr
+            }
             if (proc.exitValue()) { println "Error: ${proc.exitValue()}" }
 
             def files = unpack_dir.listFiles()
@@ -69,7 +82,7 @@ def unpack_it(String student_id, File dir, File content_dir)
 
 def locate_files(String student_id, File content_dir, PrintWriter report)
 {
-    report << """#!/usr/bin/env /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
+    report << """#!/usr/bin/env groovy
 // Student id $student_id
 println "Student id: $student_id"
 
@@ -100,7 +113,8 @@ report_config=[student_id:student_id, content_path:content_path /*, content_dir:
                 report << "println 'Best match not executable: $best_match, using first executable near match.'"
                 best_match = matches.find { it.canExecute() }
             } else {
-                report << "println 'Not executable: $best_match'"
+                report << "println 'Not executable: ${best_match}.  Made it executable.'"
+                best_match.setExecutable(true)
             }
         }
 
@@ -116,5 +130,47 @@ report_config['$filename']= ${best_match ? "'''${best_match}'''" : null }
 
     report << """
 println report_config
+
+"""
+
+	report << """
+if (args.size() > 0 && args[0] == '-runit') {
+     def environment = System.getenv().collect { it.key + '=' + it.value }
+     def tmpDir = new File(content_dir, 'zzjimwhite')
+     tmpDir.mkdir()
+     def outFile = new File(tmpDir, 'r1acc.txt')
+     def errFile = new File(tmpDir, 'r1err.txt')
+     def sysFile = new File(tmpDir, 'r1sys.txt')
+     [outFile, errFile, sysFile].each { if (it.exists()) it.delete() }
+     // The format is: build kNN.sh training_data test_data k_val similarity_func sys_output > acc_file
+     def command = [report_config['build_kNN.sh'],  '/dropbox/12-13/572/hw4/examples/train.vectors.txt', '/dropbox/12-13/572/hw4/examples/test.vectors.txt', 5, 2, sysFile.absolutePath]
+     println command.join(' ')
+     outFile.withOutputStream { stdout ->
+        errFile.withOutputStream { stderr ->
+           def proc = command.execute(environment, content_dir)
+           proc.consumeProcessOutput(stdout, stderr)
+           proc.waitFor()
+           if (proc.exitValue()) { println "Error: \${proc.exitValue()}" }
+        }
+     }
+     if (sysFile.exists()) {
+         def sysText = sysFile.text
+         def sysLines = sysText.readLines()
+         def dataLines = sysLines.grep { it.split(/\\s+/).size() == 8 && it.split(/[.\\d]+/).size() > 3 }
+         def dataCount = dataLines.size()
+         println "system output exists and contains \${sysLines.size()} lines of which \$dataCount are data lines."
+         println dataLines.take(5).join('\\n')
+     } else {
+         println "system output does not exist"
+     }
+     def errText = errFile.text
+     if (errText) {
+         println "stderr"
+         println errText
+     }
+     println "accuracy report:"
+     println outFile.text
+   
+}
 """
 }
