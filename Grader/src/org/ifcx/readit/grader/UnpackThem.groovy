@@ -124,8 +124,7 @@ report_config=[student_id:student_id, content_path:content_path, content_dir:con
     }
 
     report << """
-println report_config
-
+// println report_config
 return report_config
 """
 

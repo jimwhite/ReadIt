@@ -51,6 +51,8 @@ tmp_report_file.withPrintWriter {
             def sysFile = new File(tmpDir, 'q1sys.txt')
 
             // The format is: build kNN.sh training_data test_data k_val similarity_func sys_output > acc_file
+            // condor_run perl /dropbox/12-13/572/hw4/solution/build_kNN_svmlight.pl /dropbox/12-13/572/hw4/examples/train.vectors.txt /dropbox/12-13/572/hw4/examples/test.vectors.txt 5 1 zsys_5_1.txt >zacc_5_1.txt
+            // condor_run perl /dropbox/12-13/572/hw4/solution/build_kNN_svmlight.pl /dropbox/12-13/572/hw4/examples/train2.vectors.txt /dropbox/12-13/572/hw4/examples/test2.vectors.txt 5 1 bzsys_5_1.txt >bzacc_5_1.txt
             def command = [executable, '/dropbox/12-13/572/hw4/examples/train.vectors.txt', '/dropbox/12-13/572/hw4/examples/test.vectors.txt', 5, 2, sysFile.absolutePath]
 
             p {
@@ -122,14 +124,13 @@ tmp_report_file.withPrintWriter {
                 pre executableModified.text
             }
 
+            def inFile = new File('/dropbox/12-13/572/hw4/examples/train.vectors.txt')
             def outFile = new File(tmpDir, 'q3out.txt')
             def errFile = new File(tmpDir, 'q3err.txt')
 //            def sysFile = new File(tmpDir, 'q3sys.txt')
 
             // The format is: rank_feat_by_chi_square.sh <input_file > output_file
-            def command = [executable]
-
-            def inFile = new File('/dropbox/12-13/572/hw4/examples/train.vectors.txt')
+            def command = [executable, inFile.absolutePath]
 
             p {
                 pre(command.join(' '))
