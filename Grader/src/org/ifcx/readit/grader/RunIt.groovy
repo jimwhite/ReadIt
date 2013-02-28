@@ -19,6 +19,8 @@ tmpDir.delete()
 tmpDir.mkdir()
 println tmpDir
 
+def expected_content_dir = new File('/home2/ling572_00/hw5/_key/content')
+
 // Cyberduck quicklook has an annoying caching bug.
 // Make the report in temp dir for this run then make a copy alongside the report config file.
 def tmp_report_file = new File(tmpDir, (report_config_file.name - ~/\.groovy$/) + '.html')
@@ -175,7 +177,62 @@ tmp_report_file.withPrintWriter {
 
         }
 
-        def maxent_classify = { File executable ->
+        def classifier_expectation = { List observed_data, File expected ->
+            def expText = expected.text
+            def isDataLine = { it.split(/\s+/).size() == 8 && it.split(/[.\d]+/).size() > 3 }
+            def expLines = expText.readLines().collect { it.trim() }.findAll()
+            def expected_data = expLines.grep(isDataLine)
+
+            p "expectation"
+            if ( observed_data.size() != expected_data.size()) {
+                p "Wrong number of data lines in file.  Expected ${expected_data.size()} and got ${ observed_data.size()}."
+            } else {
+                p "Got expected number of data lines in file (${expected_data.size()})."
+            }
+
+            List<Integer> numeric_fields = [3, 5, 7]
+            List<Integer> nonnumeric_fields = (0..8) - numeric_fields
+
+            def e = parse_data(numeric_fields, expected_data)
+            def o = parse_data(numeric_fields, observed_data)
+
+            int n = Math.min( observed_data.size(), expected_data.size())
+
+            def e_mean = new double[8]
+            def o_mean = new double[8]
+
+//            println "e[0]"
+//            e[0].each { println "'$it' ${it.class}" }
+//            println "o[0]"
+//            o[0].each { println "'$it' ${it.class}" }
+
+            numeric_fields.each { j -> n.times { i -> e_mean[j] += e[i][j] } ; e_mean[j] /= n }
+            numeric_fields.each { j -> n.times { i -> o_mean[j] += o[i][j] } ; o_mean[j] /= n }
+
+            def e_var = new double[8]
+            def o_var = new double[8]
+
+            numeric_fields.each { j -> n.times { i -> e_var[j] += (e[i][j] - e_mean[j]) ** 2 } }
+            numeric_fields.each { j -> n.times { i -> o_var[j] += (e[i][j] - o_mean[j]) ** 2 } }
+
+            def variance = new double[8]
+
+            n.times { i ->
+                nonnumeric_fields.each { if (o[i][it] != e[i][it]) variance[it] += 1 }
+                numeric_fields.each { j -> variance[j] += ((o[i][j] - o_mean[j]) - (e[i][j] - e_mean[j])) ** 2 }
+            }
+
+            numeric_fields.each { j -> variance[j] /= Math.sqrt(e_var[j]) * Math.sqrt(o_var[j]) }
+
+            if (variance.every { it < 0.0001 }) { p "Data values as expected." }
+
+            table(border:1) {
+                tr { variance.each { td(it.toString()) }}
+            }
+
+        }
+
+        def maxent_classify = { File executable, File expected ->
             def executableModified = new File(executable.parentFile, executable.name + "-MODIFIED")
             if (!executable.canExecute()) {
                 executableModified << "MADE EXECUTABLE\n"
@@ -235,6 +292,9 @@ tmp_report_file.withPrintWriter {
                 table(border:1) {
                     dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
                 }
+
+                classifier_expectation(dataLines, expected)
+
                 if (sysLines.size() > dataCount) {
                     p "non-data lines"
                     pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
@@ -247,7 +307,84 @@ tmp_report_file.withPrintWriter {
             pre outFile.text
         }
 
-        def calc_exp = { String title, String name, File model_file = null ->
+        def expectation_expectation = { List observed_data, File expected ->
+            def expText = expected.text
+            def isDataLine = { it.split(/\s+/).size() == 4 && it.split(/[-.eE\d]+/).size() > 1 }
+            def expLines = expText.readLines().collect { it.trim() }.findAll()
+            def expected_data = expLines.grep(isDataLine)
+
+            p "expectation"
+            if ( observed_data.size() != expected_data.size()) {
+                p "Wrong number of data lines in file.  Expected ${expected_data.size()} and got ${ observed_data.size()}."
+            } else {
+                p "Got expected number of data lines in file (${expected_data.size()})."
+            }
+
+            List<Integer> numeric_fields = [2, 3]
+            List<Integer> nonnumeric_fields = (0..4) - numeric_fields
+
+            def e = parse_data(numeric_fields, expected_data)
+            def o = parse_data(numeric_fields, observed_data)
+
+            def expectation = [:]
+
+            e.each {
+                def (c, f, ev, ac) = it
+
+                if (!expectation.containsKey(c)) expectation[c] = [:]
+                expectation[c][f] = [ev, ac] // as double[]
+            }
+
+//            int n = Math.min( observed_data.size(), expected_data.size())
+//
+//            def e_mean = new double[8]
+//            def o_mean = new double[8]
+//
+//            numeric_fields.each { j -> n.times { i -> e_mean[j] += e[i][j] } ; e_mean[j] /= n }
+//            numeric_fields.each { j -> n.times { i -> o_mean[j] += o[i][j] } ; o_mean[j] /= n }
+//
+//            def e_var = new double[8]
+//            def o_var = new double[8]
+//
+//            numeric_fields.each { j -> n.times { i -> e_var[j] += (e[i][j] - e_mean[j]) ** 2 } }
+//            numeric_fields.each { j -> n.times { i -> o_var[j] += (e[i][j] - o_mean[j]) ** 2 } }
+//
+//            def variance = new double[8]
+//
+//            n.times { i ->
+//                nonnumeric_fields.each { if (o[i][it] != e[i][it]) variance[it] += 1 }
+//                numeric_fields.each { j -> variance[j] += ((o[i][j] - o_mean[j]) - (e[i][j] - e_mean[j])) ** 2 }
+//            }
+//
+//            numeric_fields.each { j -> variance[j] /= Math.sqrt(e_var[j]) * Math.sqrt(o_var[j]) }
+
+            def variance = new double[4]
+
+            o.each {
+                def (c, f, ev, ac) = it
+
+                if (expectation.containsKey(c)) {
+                    double[] m = expectation[c][f]
+                    if (m) {
+                        variance[2] += (ev - m[0]) ** 2
+                        variance[3] += (ac - m[1]) ** 2
+                    } else {
+                        variance[1] += 1
+                    }
+                } else {
+                    variance[0] += 1
+                }
+            }
+
+            if (variance.every { it < 0.0001 }) { p "Data values as expected." }
+
+            table(border:1) {
+                tr { variance.each { td(it.toString()) }}
+            }
+
+        }
+
+        def calc_exp = { String title, String name, File expected, File model_file = null ->
             h2 title
 
             File executable = report_config[name]
@@ -315,12 +452,17 @@ tmp_report_file.withPrintWriter {
                 // Classifier output data lines for contain 4 columns and some are numbers.
                 def isDataLine = { it.split(/\s+/).size() == 4 && it.split(/[-.eE\d]+/).size() > 1 }
                 def dataLines = sysLines.grep(isDataLine)
+                dataLines = dataLines.sort()
                 def dataCount = dataLines.size()
                 p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
                 p "data lines"
                 table(border:1) {
                     dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
+                    dataLines.reverse().take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
                 }
+
+                expectation_expectation(dataLines, expected)
+
                 if (sysLines.size() > dataCount) {
                     p "non-data lines"
                     pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
@@ -364,21 +506,22 @@ tmp_report_file.withPrintWriter {
         h2 "q2 - maxent_classify.sh"
         File q2_executable = report_config['maxent_classify.sh']
         if (q2_executable) {
-            maxent_classify q2_executable
+            maxent_classify q2_executable, new File(expected_content_dir, 'q2/res')
         } else {
             p "No executable for q2"
         }
 
-        calc_exp('q3', 'calc_emp_exp.sh')
-        calc_exp('q4a', 'calc_model_exp.sh')
+        calc_exp('q3', 'calc_emp_exp.sh', new File(expected_content_dir, 'q3/emp_count'))
 
-        def q1_m1_txt = report_config['m1.txt']
+        File q1_m1_txt = report_config['m1.txt']
         if (q1_m1_txt) {
-            calc_exp('q4b', 'calc_model_exp.sh', q1_m1_txt)
+            calc_exp('q4a', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count'), q1_m1_txt)
         } else {
-            h3 'q4b'
+            h3 'q4a'
             h2 "Not run because no model file included."
         }
+
+        calc_exp('q4b', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count2'))
 
 //        h2 "q1 - build_kNN.sh"
 //        File q1_executable = report_config['build_kNN.sh']
@@ -401,4 +544,32 @@ tmp_report_file.withPrintWriter {
     }
 }
 
+Object[] parse_data(List<Integer> numeric_fields, List<String> data) {
+    def x = new Object[data.size()]
+
+    data.eachWithIndex { String entry, int i ->
+        x[i] = data[i].split(/\s+/).collect { it }
+
+        numeric_fields.each { j ->
+            try {
+                x[i][j] = x[i][j] as Double
+            } catch (NumberFormatException ex) {
+                if (i == 0) println "x[$i][$j] is bad '${x[i][j]}'"
+                x[i][j] = 0.0e0
+            }
+        }
+
+//        if (i == 0) {
+//            println "x[0]"
+//            x[0].each { println "'$it' ${it.class}" }
+//        }
+    }
+
+//    println "x[0]"
+//    x[0].each { println "'$it' ${it.class}" }
+
+    x
+}
+
 // report_file << tmp_report_file.text
+
