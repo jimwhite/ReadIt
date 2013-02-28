@@ -2,7 +2,34 @@
 // #!/usr/bin/env GROOVY_HOME=/home2/jimwhite/Projects/Groovy/groovy-1.8.6 /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
 package org.ifcx.readit.grader
 
+// hw4:  ~/ReadIt/Grader/src/org/ifcx/readit/grader/UnpackThem.groovy build_kNN.sh rank_feat_by_chi_square.sh
+// hw5:  ~/ReadIt/Grader/src/org/ifcx/readit/grader/UnpackThem.groovy maxent_classify.sh calc_emp_exp.sh calc_model_exp.sh
+
 def submissions_dir = new File('.')
+
+def homework = args[0].toLowerCase()
+
+enum LocationType { EXECUTABLE, TEXT, BINARY }
+
+def locations = []
+
+switch (homework) {
+    case 'hw5' :
+        locations << [name:'maxent_classify.sh', type:LocationType.EXECUTABLE]
+        locations << [name:'calc_emp_exp.sh', type:LocationType.EXECUTABLE]
+        locations << [name:'calc_model_exp.sh', type:LocationType.EXECUTABLE]
+        locations << [name:'m1', dir:'q1', type:LocationType.BINARY]
+        locations << [name:'m1.txt', dir:'q1', type:LocationType.TEXT]
+        locations << [name:'acc', dir:'q2', type:LocationType.BINARY]
+        locations << [name:'res', dir:'q2', type:LocationType.TEXT]
+        locations << [name:'emp_count', dir:'q3', type:LocationType.TEXT]
+        locations << [name:'model_count', dir:'q4', type:LocationType.BINARY]
+        locations << [name:'model_count2', dir:'q4', type:LocationType.TEXT]
+        break
+    default :
+        System.err.println "Bad homework id $homework"
+        System.exit(1)
+}
 
 println submissions_dir.absolutePath
 
@@ -14,14 +41,16 @@ new File(submissions_dir, 'run_all.sh').withPrintWriter { run_script ->
         def content_dir = new File(dir, 'content')
         unpack_it(student_id, dir, content_dir)
 
-        def report_file = new File(dir, 'report.groovy')
-        report_file.withPrintWriter { report_writer ->
-            locate_files(student_id, content_dir.absoluteFile, report_writer)
-        }
-        report_file.setExecutable(true)
-        evaluate(report_file)
+        if (content_dir.exists()) {
+            def report_file = new File(dir, 'report.groovy')
+            report_file.withPrintWriter { report_writer ->
+                locate_files(student_id, content_dir.absoluteFile, report_writer, locations)
+            }
+            report_file.setExecutable(true)
+            evaluate(report_file)
 
-        run_script.println "condor_run ~/ReadIt/Grader/src/org/ifcx/readit/grader/RunIt.groovy $report_file &"
+            run_script.println "condor_run ~/ReadIt/Grader/src/org/ifcx/readit/grader/RunIt.groovy $report_file &"
+        }
     }
 }
 
@@ -81,23 +110,33 @@ def unpack_it(String student_id, File dir, File content_dir)
 
 }
 
-def locate_files(String student_id, File content_dir, PrintWriter report)
+def locate_files(String student_id, File content_dir, PrintWriter report, List locations)
 {
-    report << """#!/usr/bin/env groovy
-// Student id $student_id
-println "Student id: $student_id"
+    report << """// Homework Report Config
 
 student_id='$student_id'
-content_path='''$content_dir'''
+content_path='$content_dir'
 content_dir=new File(content_path)
 report_config=[student_id:student_id, content_path:content_path, content_dir:content_dir]
 """
+
+//    report << """#!/usr/bin/env groovy
+//// Student id $student_id
+//println "Student id: $student_id"
+//
+//student_id='$student_id'
+//content_path='''$content_dir'''
+//content_dir=new File(content_path)
+//report_config=[student_id:student_id, content_path:content_path, content_dir:content_dir]
+//"""
 
     def file_list = []
     content_dir.eachFileRecurse { file_list << it }
     file_list.sort(true) { -it.lastModified() }
 
-    ["build_kNN.sh", "rank_feat_by_chi_square.sh"].each { filename ->
+    locations.grep { it.type == LocationType.EXECUTABLE }.each {
+        String filename = it.name
+
         File best_match = null
         def matches = []
 
@@ -123,9 +162,28 @@ report_config=[student_id:student_id, content_path:content_path, content_dir:con
         matches.each { report.println "${it == best_match ? '' : '// '}report_config['$filename']=new File('${it.absolutePath}') ${it.canExecute() ? '' : '// NOT EXECUTABLE' }"  }
     }
 
-    report << """
-// println report_config
-return report_config
-"""
+    locations.grep { it.type in [LocationType.TEXT, LocationType.BINARY] }.each {
+        String filename = it.name
+        String dir = it.dir
+
+        File best_match = null
+        def matches = []
+
+        file_list.each { File f ->
+            if (f.name == filename && (!dir || dir.equalsIgnoreCase(f.parentFile.name)) && !best_match) best_match = f
+            if (f.name.equalsIgnoreCase(filename)) matches << f
+        }
+
+        if (!best_match && matches) best_match = matches[0]
+
+        if (matches.size() > 1) report.println "println '${matches.size()} matches for $filename'"
+
+        matches.each { report.println "${it == best_match ? '' : '// '}report_config['$filename']=new File('${it.absolutePath}')"  }
+
+        if (!matches) { report.println "// No matches for $filename" }
+    }
+
+    report.println()
+    report.println "return report_config"
 
 }
