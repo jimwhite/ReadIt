@@ -5,6 +5,13 @@ import groovy.xml.MarkupBuilder
 
 def environment = System.getenv().collect { it.key + '=' + it.value }
 
+def do_calculations = true
+
+if (args.length > 0 && args[0].startsWith('-')) {
+    do_calculations = args[0] == "-run"
+    args = args.tail()
+}
+
 def report_config_file = new File(args.length > 0 ? args[0] : 'report.groovy')
 
 def report_dir = report_config_file.parentFile
@@ -20,6 +27,10 @@ tmpDir.mkdir()
 println tmpDir
 
 def expected_content_dir = new File('/home2/ling572_00/hw5/_key/content')
+
+whitespace_pattern = ~/\s+/
+number_pattern_str = /[+-]?(?:(?:\d+(?:\.\d*))|(?:\.\d+))[-+Ee.\d]*/
+number_pattern = ~number_pattern_str
 
 // Cyberduck quicklook has an annoying caching bug.
 // Make the report in temp dir for this run then make a copy alongside the report config file.
@@ -84,14 +95,14 @@ tmp_report_file.withPrintWriter {
                 // Turn into a list of non-empty lines.
                 def sysLines = sysText.readLines().findAll()
                 // Data lines for hw4 contain 8 columns and some are numbers.
-                def isDataLine = { it.split(/\s+/).size() == 8 && it.split(/[.\d]+/).size() > 3 }
+                def isDataLine = { whitespace_pattern.split(it).size() == 8 && number_pattern.split(it).size() > 3 }
                 def dataLines = sysLines.grep(isDataLine)
                 def dataCount = dataLines.size()
                 p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
                 p "data lines"
 //            pre dataLines.take(5).join('\n')
                 table(border:1) {
-                    dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
+                    dataLines.take(10).each { line -> tr { whitespace_pattern.split(line).each { td(it) } } }
                 }
                 if (sysLines.size() > dataCount) {
                     p "non-data lines"
@@ -159,13 +170,13 @@ tmp_report_file.withPrintWriter {
                 // The output file has the format “featName score docFreq”.
                 // The score is the chi-square score for the feature; docFreq is the number of documents that the feature occurs in.
                 // The lines are sorted by χ2 score in descending order.
-                def isDataLine = { it.split(/\s+/).size() == 3 && it.split(/[.\d]+/).size() > 1 }
+                def isDataLine = { whitespace_pattern.split(it).size() == 3 && number_pattern.split(it).size() > 1 }
                 def dataLines = sysLines.grep(isDataLine)
                 def dataCount = dataLines.size()
                 p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
                 p "data lines"
                 table(border:1) {
-                    dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
+                    dataLines.take(10).each { line -> tr { whitespace_pattern.split(line).each { td(it) } } }
                 }
                 if (sysLines.size() > dataCount) {
                     p "non-data lines"
@@ -177,9 +188,21 @@ tmp_report_file.withPrintWriter {
 
         }
 
-        def classifier_expectation = { List observed_data, File expected ->
+        def classifier_expectation = { File sysFile, File expected ->
+            def sysText = sysFile.text
+            // Turn into a list of non-empty lines.
+            def sysLines = sysText.readLines().collect { it.trim() }.findAll()
+            // Classifier output data lines for contain 8 columns and some are numbers.
+            def isDataLine = { whitespace_pattern.split(it).size() == 8 && number_pattern.split(it).size() > 3 }
+            def observed_data = sysLines.grep(isDataLine)
+            def dataCount = observed_data.size()
+            p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
+            p "data lines"
+            table(border:1) {
+                observed_data.take(10).each { line -> tr { whitespace_pattern.split(line).each { td(it) } } }
+            }
+
             def expText = expected.text
-            def isDataLine = { it.split(/\s+/).size() == 8 && it.split(/[.\d]+/).size() > 3 }
             def expLines = expText.readLines().collect { it.trim() }.findAll()
             def expected_data = expLines.grep(isDataLine)
 
@@ -191,7 +214,10 @@ tmp_report_file.withPrintWriter {
             }
 
             List<Integer> numeric_fields = [3, 5, 7]
-            List<Integer> nonnumeric_fields = (0..8) - numeric_fields
+            List<Integer> nonnumeric_fields = (1..8) - numeric_fields
+
+//            observed_data.sort(true)
+//            expected_data.sort(true)
 
             def e = parse_data(numeric_fields, expected_data)
             def o = parse_data(numeric_fields, observed_data)
@@ -215,11 +241,14 @@ tmp_report_file.withPrintWriter {
             numeric_fields.each { j -> n.times { i -> e_var[j] += (e[i][j] - e_mean[j]) ** 2 } }
             numeric_fields.each { j -> n.times { i -> o_var[j] += (e[i][j] - o_mean[j]) ** 2 } }
 
-            def variance = new double[8]
+            def variance = [0.0e0] * 8
+            def distances = new Object[n]
 
             n.times { i ->
+                def d0 = variance.sum()
                 nonnumeric_fields.each { if (o[i][it] != e[i][it]) variance[it] += 1 }
                 numeric_fields.each { j -> variance[j] += ((o[i][j] - o_mean[j]) - (e[i][j] - e_mean[j])) ** 2 }
+                distances[i] = [variance.sum() - d0, i]
             }
 
             numeric_fields.each { j -> variance[j] /= Math.sqrt(e_var[j]) * Math.sqrt(o_var[j]) }
@@ -230,6 +259,21 @@ tmp_report_file.withPrintWriter {
                 tr { variance.each { td(it.toString()) }}
             }
 
+            br()
+
+            distances.sort(true) { a, b -> b[0] <=> a[0] }
+
+            table(border:1) {
+                distances.take(10).each { d, i ->
+                    tr { td('E') ; e[i].each { td(it.toString()) } }
+                    tr { td('O') ; o[i].eachWithIndex { v, j -> td(v.toString()) } }
+                }
+            }
+
+            if (sysLines.size() > dataCount) {
+                p "non-data lines"
+                pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
+            }
         }
 
         def maxent_classify = { File executable, File expected ->
@@ -249,9 +293,9 @@ tmp_report_file.withPrintWriter {
             // maxent_classify.sh /dropbox/12-13/572/hw5/examples/test2.vectors.txt q1/m1.txt q2/res >q2/acc
 
 //            def inFile = new File('/dropbox/12-13/572/hw5/examples/train.vectors.txt')
-            def outFile = new File(tmpDir, 'q3out.txt')
-            def errFile = new File(tmpDir, 'q3err.txt')
-            def sysFile = new File(tmpDir, 'q3res.txt')
+            def outFile = new File(tmpDir, 'q2out.txt')
+            def errFile = new File(tmpDir, 'q2err.txt')
+            def sysFile = new File(tmpDir, 'q2res.txt')
 
             // The format is: rank_feat_by_chi_square.sh <input_file > output_file
             def command = [executable, '/dropbox/12-13/572/hw5/examples/test2.vectors.txt', report_config['m1.txt']?.absolutePath, sysFile.absolutePath]
@@ -280,25 +324,7 @@ tmp_report_file.withPrintWriter {
 
             h3 'System Output'
             if (sysFile.exists()) {
-                def sysText = sysFile.text
-                // Turn into a list of non-empty lines.
-                def sysLines = sysText.readLines().collect { it.trim() }.findAll()
-                // Classifier output data lines for contain 8 columns and some are numbers.
-                def isDataLine = { it.split(/\s+/).size() == 8 && it.split(/[.\d]+/).size() > 3 }
-                def dataLines = sysLines.grep(isDataLine)
-                def dataCount = dataLines.size()
-                p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
-                p "data lines"
-                table(border:1) {
-                    dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
-                }
-
-                classifier_expectation(dataLines, expected)
-
-                if (sysLines.size() > dataCount) {
-                    p "non-data lines"
-                    pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
-                }
+                classifier_expectation(sysFile  , expected)
             } else {
                 p "system output does not exist"
             }
@@ -307,18 +333,26 @@ tmp_report_file.withPrintWriter {
             pre outFile.text
         }
 
-        def expectation_expectation = { List observed_data, File expected ->
+        def expectation_expectation = { File sysFile, File expected ->
+            def sysText = sysFile.text
+            // Turn into a list of non-empty lines.
+            def sysLines = sysText.readLines().collect { it.trim() }.findAll()
+            // Classifier output data lines for contain 4 columns and some are numbers.
+            def isDataLine = { whitespace_pattern.split(it).size() == 4 && number_pattern.split(it).size() > 1 }
+            def observed_data = sysLines.grep(isDataLine)
+            observed_data = observed_data.sort()
+            def dataCount = observed_data.size()
+
+            p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
+//                p "data lines"
+//                table(border:1) {
+//                    dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
+//                    dataLines.reverse().take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
+//                }
+
             def expText = expected.text
-            def isDataLine = { it.split(/\s+/).size() == 4 && it.split(/[-.eE\d]+/).size() > 1 }
             def expLines = expText.readLines().collect { it.trim() }.findAll()
             def expected_data = expLines.grep(isDataLine)
-
-            p "expectation"
-            if ( observed_data.size() != expected_data.size()) {
-                p "Wrong number of data lines in file.  Expected ${expected_data.size()} and got ${ observed_data.size()}."
-            } else {
-                p "Got expected number of data lines in file (${expected_data.size()})."
-            }
 
             List<Integer> numeric_fields = [2, 3]
             List<Integer> nonnumeric_fields = (0..4) - numeric_fields
@@ -326,62 +360,99 @@ tmp_report_file.withPrintWriter {
             def e = parse_data(numeric_fields, expected_data)
             def o = parse_data(numeric_fields, observed_data)
 
-            def expectation = [:]
+            //FIXME: SUPER unhelpful error message if your closure gives collectEntries a list with wrong number of elements.
+            //Assumes anything that isn't a two element list is a Map.Entry and tries to do getKey on it.
+//            def expectation = (e as List).collect { r ->
+//                def (c, f, ev, ac) = r
+//                def kv = [to_key(c, f), ev, ac]
+//                kv
+//            }.collectEntries()
+//
+//            def observation = (o as List).collect { r ->
+//                def (c, f, ev, ac) = r
+//                def kv = [to_key(c, f), ev, ac]
+//                kv
+//            }.collectEntries()
 
-            e.each {
-                def (c, f, ev, ac) = it
+            def expectation = e.collectEntries { c, f, ev, ac -> [to_key(c, f), [ev, ac]] }
+            def observation = o.collectEntries { c, f, ev, ac -> [to_key(c, f), [ev, ac]] }
 
-                if (!expectation.containsKey(c)) expectation[c] = [:]
-                expectation[c][f] = [ev, ac] // as double[]
+//            def nzo = o.grep { it.slice(numeric_fields).every() }
+//            def nze = e.grep { it.slice(numeric_fields).every() }
+            def nzo = o.grep { it[2, 3].every() }
+            def nze = e.grep { it[2, 3].every() }
+
+            p "expectation"
+            if ( nzo.size() != nze.size()) {
+                p "Wrong number of non-zero data lines in file.  Expected ${nze.size()} and got ${nzo.size()}."
+
+                p "some missing values"
+
+                //BUG? this either gets stuck or is crazy slow.
+//                def missing_keys = (expectation.keySet() - observation.keySet()) as List
+//                missing_keys = missing_keys.grep { expectation[it][0] || expectation[it][1] }
+
+                def missing_e = nze.grep { c, f, ev, ac ->
+                    def c_f = to_key(c, f)
+                    ev && ac && (!observation.containsKey(c_f) || !observation[c_f][0] && !observation[c_f][1])
+                }
+
+                table(border:1) {
+//                    missing_keys.take(10).each { c_f -> tr { td(c_f) ; expectation[c_f].each { td(it as String) } } }
+                    missing_e.take(15).each { r -> tr { r.each { td(it as String) } } }
+                    missing_e.reverse().take(15).each { r -> tr { r.each { td(it as String) } } }
+//                    missing_e.reverse().take(10).each { c_f -> tr { td(c_f) ; td(expectation[c_f][0] as String) ; td(expectation[c_f][1] as String) } }
+                }
+            } else {
+                p "Got expected number of non-zero data lines in file (${nze.size()})."
+            }
+            p "Total expected rows ${e.size()} and observed rows ${o.size()}"
+
+            p "data"
+            table(border:1) {
+                nzo.take(15).each { r -> tr { r.each { td(it as String) } } }
+                nzo.reverse().take(15).each { r -> tr { r.each { td(it as String) } } }
             }
 
-//            int n = Math.min( observed_data.size(), expected_data.size())
-//
-//            def e_mean = new double[8]
-//            def o_mean = new double[8]
-//
-//            numeric_fields.each { j -> n.times { i -> e_mean[j] += e[i][j] } ; e_mean[j] /= n }
-//            numeric_fields.each { j -> n.times { i -> o_mean[j] += o[i][j] } ; o_mean[j] /= n }
-//
-//            def e_var = new double[8]
-//            def o_var = new double[8]
-//
-//            numeric_fields.each { j -> n.times { i -> e_var[j] += (e[i][j] - e_mean[j]) ** 2 } }
-//            numeric_fields.each { j -> n.times { i -> o_var[j] += (e[i][j] - o_mean[j]) ** 2 } }
-//
-//            def variance = new double[8]
-//
-//            n.times { i ->
-//                nonnumeric_fields.each { if (o[i][it] != e[i][it]) variance[it] += 1 }
-//                numeric_fields.each { j -> variance[j] += ((o[i][j] - o_mean[j]) - (e[i][j] - e_mean[j])) ** 2 }
-//            }
-//
-//            numeric_fields.each { j -> variance[j] /= Math.sqrt(e_var[j]) * Math.sqrt(o_var[j]) }
-
             def variance = new double[4]
+            def distances = new Object[o.size()]
 
-            o.each {
-                def (c, f, ev, ac) = it
+            o.eachWithIndex { r, i ->
+                def (c, f, ev, ac) = r
 
-                if (expectation.containsKey(c)) {
-                    double[] m = expectation[c][f]
-                    if (m) {
-                        variance[2] += (ev - m[0]) ** 2
-                        variance[3] += (ac - m[1]) ** 2
-                    } else {
-                        variance[1] += 1
-                    }
+                double[] m = expectation[to_key(c, f)]
+                if (m) {
+                    variance[2] += (ev - m[0]) ** 2
+                    variance[3] += (ac - m[1]) ** 2
+
+                    distances[i] = [((ev - m[0]) ** 2) + ((ac - m[1]) ** 2), i]
                 } else {
-                    variance[0] += 1
+                    variance[1] += 1
                 }
             }
 
-            if (variance.every { it < 0.0001 }) { p "Data values as expected." }
+            p ((variance.every { it < 0.0001 }) ? "Data values as expected." : "Data values differ more than expected.")
 
             table(border:1) {
                 tr { variance.each { td(it.toString()) }}
             }
 
+            p "biggest differences"
+
+            distances = distances.grep { it != null }.sort { a, b -> b[0] <=> a[0] }
+
+            table(border:1) {
+                distances.take(10).each { d, i ->
+                    def (c, f, ev, ac) = o[i]
+                    tr { td('O') ; o[i].eachWithIndex { v, j -> td(v.toString()) } }
+                    tr { td('E') ; td(colspan:2); (expectation[to_key(c, f)] as List).each { td(it.toString()) } }
+                }
+            }
+
+            if (sysLines.size() > dataCount) {
+                p "non-data lines"
+                pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
+            }
         }
 
         def calc_exp = { String title, String name, File expected, File model_file = null ->
@@ -446,27 +517,9 @@ tmp_report_file.withPrintWriter {
 
             h3 'System Output'
             if (sysFile.exists()) {
-                def sysText = sysFile.text
-                // Turn into a list of non-empty lines.
-                def sysLines = sysText.readLines().collect { it.trim() }.findAll()
-                // Classifier output data lines for contain 4 columns and some are numbers.
-                def isDataLine = { it.split(/\s+/).size() == 4 && it.split(/[-.eE\d]+/).size() > 1 }
-                def dataLines = sysLines.grep(isDataLine)
-                dataLines = dataLines.sort()
-                def dataCount = dataLines.size()
-                p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
-                p "data lines"
-                table(border:1) {
-                    dataLines.take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
-                    dataLines.reverse().take(10).each { line -> tr { line.split(/\s+/).each { td(it) } } }
-                }
 
-                expectation_expectation(dataLines, expected)
+                expectation_expectation(sysFile, expected)
 
-                if (sysLines.size() > dataCount) {
-                    p "non-data lines"
-                    pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
-                }
             } else {
                 p "system output does not exist"
             }
@@ -503,25 +556,40 @@ tmp_report_file.withPrintWriter {
         binary_file('m1')
         text_file('m1.txt')
 
-        h2 "q2 - maxent_classify.sh"
-        File q2_executable = report_config['maxent_classify.sh']
-        if (q2_executable) {
-            maxent_classify q2_executable, new File(expected_content_dir, 'q2/res')
+        h2 'q2/res'
+        File q2_res = report_config['res']
+        if (q2_res) {
+            classifier_expectation(q2_res, new File(expected_content_dir, 'q2/res'))
         } else {
-            p "No executable for q2"
+            p "No q2/res file"
         }
 
-        calc_exp('q3', 'calc_emp_exp.sh', new File(expected_content_dir, 'q3/emp_count'))
+        if (do_calculations) {
+            h2 "q2 - maxent_classify.sh"
+            File q2_executable = report_config['maxent_classify.sh']
+            if (q2_executable) {
+                maxent_classify q2_executable, new File(expected_content_dir, 'q2/res')
+            } else {
+                p "No executable for q2"
+            }
 
-        File q1_m1_txt = report_config['m1.txt']
-        if (q1_m1_txt) {
-            calc_exp('q4a', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count'), q1_m1_txt)
-        } else {
-            h3 'q4a'
-            h2 "Not run because no model file included."
+            calc_exp('q3', 'calc_emp_exp.sh', new File(expected_content_dir, 'q3/emp_count'))
+
+            calc_exp('q4d', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count'))
+
+            calc_exp('q4f', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count2'), new File(expected_content_dir, 'q1/m1.txt'))
         }
 
-        calc_exp('q4b', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count2'))
+        [['emp_count', 'q3/emp_count'], ['model_count', 'q4/model_count'], ['model_count2', 'q4/model_count2']].each { String kt, String file_p ->
+            h2 file_p
+            File f = report_config[kt]
+            if (f) {
+                expectation_expectation(f, new File(expected_content_dir, file_p))
+            } else {
+                p "No $file_p file"
+            }
+        }
+
 
 //        h2 "q1 - build_kNN.sh"
 //        File q1_executable = report_config['build_kNN.sh']
@@ -542,13 +610,16 @@ tmp_report_file.withPrintWriter {
         br()
         hr()
     }
+
 }
+
+private String to_key(c, f) { c + '|' + f }
 
 Object[] parse_data(List<Integer> numeric_fields, List<String> data) {
     def x = new Object[data.size()]
 
     data.eachWithIndex { String entry, int i ->
-        x[i] = data[i].split(/\s+/).collect { it }
+        x[i] = whitespace_pattern.split(data[i]) as List
 
         numeric_fields.each { j ->
             try {
