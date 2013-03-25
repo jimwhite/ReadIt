@@ -32,7 +32,7 @@ def hw6_expected_content_dir = new File('/home2/ling572_00/hw6/_key/content')
 def hw7_expected_content_dir = new File(report_config.content_dir, '../../gress/content')
 
 whitespace_pattern = ~/\s+/
-number_pattern_str = /[+-]?(?:(?:\d+(?:\.\d*))|(?:\.\d+))[-+Ee.\d]*/
+number_pattern_str = /[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))[-+Ee.\d]*/
 number_pattern = ~number_pattern_str
 
 // Cyberduck quicklook has an annoying caching bug.
@@ -753,6 +753,145 @@ tmp_report_file.withPrintWriter {
             pre lines.take(lines_to_show).join('\n')
         }
 
+        def svm_sys_expectation = { File sysFile, File expected ->
+            def sysText = sysFile.text
+            // Turn into a list of non-empty lines.
+            def sysLines = sysText.readLines().collect { it.trim() }.findAll()
+            // Classifier output data lines for contain 8 columns and some are numbers.
+            def isDataLine = { whitespace_pattern.split(it).size() == 3 && number_pattern.split(it).size() == 3}
+            def observed_data = sysLines.grep(isDataLine)
+            def dataCount = observed_data.size()
+            p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
+            p "data lines"
+            table(border:1) {
+                observed_data.take(10).each { line -> tr { whitespace_pattern.split(line).each { td(it) } } }
+            }
+
+            def expText = expected.text
+            def expLines = expText.readLines().collect { it.trim() }.findAll()
+            def expected_data = expLines.grep(isDataLine)
+
+            p "expectation"
+            if ( observed_data.size() != expected_data.size()) {
+                p "Wrong number of data lines in file.  Expected ${expected_data.size()} and got ${ observed_data.size()}."
+            } else {
+                p "Got expected number of data lines in file (${expected_data.size()})."
+            }
+
+            List<Integer> numeric_fields = [*0..2]
+            List<Integer> nonnumeric_fields = []
+
+            def e = parse_data(numeric_fields, expected_data)
+            def o = parse_data(numeric_fields, observed_data)
+
+            int n = Math.min( observed_data.size(), expected_data.size())
+
+            def e_mean = new double[8]
+            def o_mean = new double[8]
+
+            numeric_fields.each { j -> n.times { i -> e_mean[j] += e[i][j] } ; e_mean[j] /= n }
+            numeric_fields.each { j -> n.times { i -> o_mean[j] += o[i][j] } ; o_mean[j] /= n }
+
+            def e_var = new double[8]
+            def o_var = new double[8]
+
+            numeric_fields.each { j -> n.times { i -> e_var[j] += (e[i][j] - e_mean[j]) ** 2 } }
+            numeric_fields.each { j -> n.times { i -> o_var[j] += (e[i][j] - o_mean[j]) ** 2 } }
+
+            def variance = [0.0e0] * 3
+            def distances = new Object[n]
+
+            n.times { i ->
+                def d0 = variance.sum()
+                nonnumeric_fields.each { if (o[i][it] != e[i][it]) variance[it] += 1 }
+                numeric_fields.each { j -> variance[j] += ((o[i][j] - o_mean[j]) - (e[i][j] - e_mean[j])) ** 2 }
+                distances[i] = [variance.sum() - d0, i]
+            }
+
+            numeric_fields.each { j -> variance[j] /= Math.sqrt(e_var[j]) * Math.sqrt(o_var[j]) }
+
+            if (variance.every { it < 0.0001 }) { p "Data values as expected." }
+
+            table(border:1) {
+                tr { variance.each { td(it.toString()) }}
+            }
+
+            br()
+
+            distances.sort(true) { a, b -> b[0] <=> a[0] }
+
+            table(border:1) {
+                distances.take(10).each { d, i ->
+                    tr { td('E') ; e[i].each { td(it.toString()) } }
+                    tr { td('O') ; o[i].eachWithIndex { v, j -> td(v.toString()) } }
+                }
+            }
+
+            if (sysLines.size() > dataCount) {
+                p "non-data lines"
+                pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
+            }
+        }
+
+        def svm_classification = { File executable, File model, File expected ->
+            def executableModified = new File(executable.parentFile, executable.name + "-MODIFIED")
+            if (!executable.canExecute()) {
+                executableModified << "MADE EXECUTABLE\n"
+                // Make it executable by anybody.
+                executable.setExecutable(true, false)
+            }
+
+            if (executableModified.exists()) {
+                h3 'Executable Modified'
+                pre executable.path
+                pre executableModified.text
+            }
+
+
+            def outFile = new File(tmpDir, expected.name + '-out.txt')
+            def errFile = new File(tmpDir, expected.name + '-err.txt')
+            def sysFile = new File(tmpDir, expected.name + '-sys.txt')
+
+            def data_path = new File('/dropbox/12-13/572/hw7/examples/')
+
+            // svm_classify.sh test_data model_file sys_output
+            // condor_run "./beamsearch_maxent.sh /dropbox/12-13/572/hw7/examples/test model.1 sys.1
+            def command = [executable, new File(data_path, 'test').absolutePath, model.absolutePath, sysFile.absolutePath]
+
+            p {
+                pre(command.join(' '))
+            }
+
+            outFile.withOutputStream { stdout ->
+                errFile.withOutputStream { stderr ->
+                    def proc = command.execute(environment, executable.parentFile)
+                    proc.waitForProcessOutput(stdout, stderr)
+                    if (proc.exitValue()) {
+                        h3 'Error'
+                        p "exitValue: ${proc.exitValue()}"
+                    }
+                }
+            }
+
+            def errText = errFile.text
+            if (errText) {
+                h3 "stderr"
+                pre errText
+            }
+
+            h3 'System Output'
+            if (sysFile.exists()) {
+                svm_sys_expectation(sysFile, expected)
+            } else {
+                p "system output does not exist"
+            }
+
+            h3 "accuracy report:"
+            pre outFile.text
+        }
+
+
+
         def binary_file = { String name ->
             File file = report_config[name]
 
@@ -780,11 +919,25 @@ tmp_report_file.withPrintWriter {
             File file = report_config[file_key]
             h3 file_key
             if (file) {
-                svmlight_output_file(file_key, file, new File(hw7_expected_content_dir, "q2/" + file_key), 20)
+//                svmlight_output_file(file_key, file, new File(hw7_expected_content_dir, "q2/" + file_key), 20)
+                svm_sys_expectation(file, new File(hw7_expected_content_dir, "q2/" + file_key))
             } else {
-                p "No file for $name"
+                p "No file for $file_key"
             }
             hr()
+        }
+
+        if (do_calculations) {
+            File svm_classifier_executable = report_config['svm_classify.sh']
+            if (svm_classifier_executable) {
+                (1..5).each { model_num ->
+                    h2 "Run svm_classify.sh on $model_num"
+                    svm_classification(svm_classifier_executable, new File(hw7_expected_content_dir, "q1/model." + model_num), new File(hw7_expected_content_dir, "q2/sys." + model_num))
+                    hr()
+                }
+            } else {
+                h2 "No svm_classify.sh!"
+            }
         }
 
         // hw6

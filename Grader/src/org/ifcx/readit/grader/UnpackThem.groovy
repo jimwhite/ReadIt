@@ -2,6 +2,8 @@
 // #!/usr/bin/env GROOVY_HOME=/home2/jimwhite/Projects/Groovy/groovy-1.8.6 /home2/jimwhite/Projects/Groovy/groovy-1.8.6/bin/groovy
 package org.ifcx.readit.grader
 
+import java.util.regex.Pattern
+
 // hw4:  ~/ReadIt/Grader/src/org/ifcx/readit/grader/UnpackThem.groovy build_kNN.sh rank_feat_by_chi_square.sh
 // hw5:  ~/ReadIt/Grader/src/org/ifcx/readit/grader/UnpackThem.groovy maxent_classify.sh calc_emp_exp.sh calc_model_exp.sh
 
@@ -41,6 +43,12 @@ switch (homework) {
         locations << [name:'sys.3', dir:'q2', type:LocationType.TEXT]
         locations << [name:'sys.4', dir:'q2', type:LocationType.TEXT]
         locations << [name:'sys.5', dir:'q2', type:LocationType.TEXT]
+        break
+    case 'hw8' :
+        locations << [name:'TBL_train.sh', type:LocationType.EXECUTABLE]
+        locations << [name:'TBL_classify.sh', type:LocationType.EXECUTABLE]
+        locations << [name:'model', pattern: '.*model.*', type:LocationType.TEXT]
+        locations << [name:'output', pattern:  '.*out.*', type:LocationType.TEXT]
         break
     default :
         System.err.println "Bad homework id $homework"
@@ -180,14 +188,23 @@ report_config=[student_id:student_id, content_path:content_path, content_dir:con
 
     locations.grep { it.type in [LocationType.TEXT, LocationType.BINARY] }.each {
         String filename = it.name
+        String pattern = it.pattern
         String dir = it.dir
 
         File best_match = null
         def matches = []
 
         file_list.each { File f ->
-            if (f.name == filename && (!dir || dir.equalsIgnoreCase(f.parentFile.name)) && !best_match) best_match = f
-            if (f.name.equalsIgnoreCase(filename)) matches << f
+            if (pattern) {
+//                if (pattern.matcher(filename).matches()) {
+                if (f.name.matches(pattern)) {
+                    if (!best_match  && (!dir || dir.equalsIgnoreCase(f.parentFile.name))) best_match = f
+                    matches << f
+                }
+            } else {
+                if (f.name == filename && (!dir || dir.equalsIgnoreCase(f.parentFile.name)) && !best_match) best_match = f
+                if (f.name.equalsIgnoreCase(filename)) matches << f
+            }
         }
 
         if (!best_match && matches) best_match = matches[0]
