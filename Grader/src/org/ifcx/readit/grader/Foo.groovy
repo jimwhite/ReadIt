@@ -1,3 +1,4 @@
+/*
 // package org.ifcx.readit.grader
 // Say we're in the same package as DecisionTree so IntelliJ will autocomplete package scope fields.
 package cc.mallet.classify
@@ -39,3 +40,7 @@ new File(args[1]).text = new StreamingMarkupBuilder().bind() {
         }
     }
 }
+*/
+
+println ((new Date('Feb 24, 2013 3:33 AM').time - new Date('Feb 23, 2013 11:45 PM').time)/(1000l*60*60))
+

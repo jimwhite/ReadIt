@@ -26,6 +26,22 @@ switch (homework) {
         locations << [name:'model_count', dir:'q4', type:LocationType.BINARY]
         locations << [name:'model_count2', dir:'q4', type:LocationType.TEXT]
         break
+    case 'hw6' :
+        locations << [name:'beamsearch_maxent.sh', type:LocationType.EXECUTABLE]
+        break
+    case 'hw7' :
+        locations << [name:'svm_classify.sh', type:LocationType.EXECUTABLE]
+        locations << [name:'model.1', dir:'q1', type:LocationType.TEXT]
+        locations << [name:'model.2', dir:'q1', type:LocationType.TEXT]
+        locations << [name:'model.3', dir:'q1', type:LocationType.TEXT]
+        locations << [name:'model.4', dir:'q1', type:LocationType.TEXT]
+        locations << [name:'model.5', dir:'q1', type:LocationType.TEXT]
+        locations << [name:'sys.1', dir:'q2', type:LocationType.TEXT]
+        locations << [name:'sys.2', dir:'q2', type:LocationType.TEXT]
+        locations << [name:'sys.3', dir:'q2', type:LocationType.TEXT]
+        locations << [name:'sys.4', dir:'q2', type:LocationType.TEXT]
+        locations << [name:'sys.5', dir:'q2', type:LocationType.TEXT]
+        break
     default :
         System.err.println "Bad homework id $homework"
         System.exit(1)

@@ -26,7 +26,10 @@ tmpDir.delete()
 tmpDir.mkdir()
 println tmpDir
 
-def expected_content_dir = new File('/home2/ling572_00/hw5/_key/content')
+def hw6_expected_content_dir = new File('/home2/ling572_00/hw6/_key/content')
+
+//def hw7_expected_content_dir = new File('/home2/ling572_00/hw7/gress/content')
+def hw7_expected_content_dir = new File(report_config.content_dir, '../../gress/content')
 
 whitespace_pattern = ~/\s+/
 number_pattern_str = /[+-]?(?:(?:\d+(?:\.\d*))|(?:\.\d+))[-+Ee.\d]*/
@@ -43,7 +46,7 @@ tmp_report_file.withPrintWriter {
         pre tmpDir.absolutePath
 
         pre report_config_file.text
-        br()
+        hr()
 
         def hw4q1 = { File executable ->
             def executableModified = new File(executable.parentFile, executable.name + "-MODIFIED")
@@ -526,18 +529,228 @@ tmp_report_file.withPrintWriter {
 
         }
 
-        def text_file = { String name ->
+        def beamsearch_expectation = { File sysFile, File expected ->
+            def sysText = sysFile.text
+            // Turn into a list of non-empty lines.
+            def sysLines = sysText.readLines().collect { it.trim() }.findAll()
+            // Classifier output data lines for contain 8 columns and some are numbers.
+            def isDataLine = { whitespace_pattern.split(it).size() == 4 && (it =~ number_pattern).find() }
+            def observed_data = sysLines.grep(isDataLine)
+            def dataCount = observed_data.size()
+            p "system output exists and contains ${sysLines.size()} non-empty lines of which $dataCount are data lines."
+            p "data lines"
+            table(border:1) {
+                observed_data.take(10).each { line -> tr { whitespace_pattern.split(line).each { td(it) } } }
+            }
+
+            def expText = expected.text
+            def expLines = expText.readLines().collect { it.trim() }.findAll()
+            def expected_data = expLines.grep(isDataLine)
+
+            p "expectation"
+            if ( observed_data.size() != expected_data.size()) {
+                p "Wrong number of data lines in file.  Expected ${expected_data.size()} and got ${ observed_data.size()}."
+            } else {
+                p "Got expected number of data lines in file (${expected_data.size()})."
+            }
+
+            List<Integer> numeric_fields = [3]
+            List<Integer> nonnumeric_fields = (1..4) - numeric_fields
+
+//            observed_data.sort(true)
+//            expected_data.sort(true)
+
+            def e = parse_data(numeric_fields, expected_data)
+            def o = parse_data(numeric_fields, observed_data)
+
+            int n = Math.min( observed_data.size(), expected_data.size())
+
+            def e_mean = new double[8]
+            def o_mean = new double[8]
+
+//            println "e[0]"
+//            e[0].each { println "'$it' ${it.class}" }
+//            println "o[0]"
+//            o[0].each { println "'$it' ${it.class}" }
+
+            numeric_fields.each { j -> n.times { i -> e_mean[j] += e[i][j] } ; e_mean[j] /= n }
+            numeric_fields.each { j -> n.times { i -> o_mean[j] += o[i][j] } ; o_mean[j] /= n }
+
+            def e_var = new double[8]
+            def o_var = new double[8]
+
+            numeric_fields.each { j -> n.times { i -> e_var[j] += (e[i][j] - e_mean[j]) ** 2 } }
+            numeric_fields.each { j -> n.times { i -> o_var[j] += (e[i][j] - o_mean[j]) ** 2 } }
+
+            def variance = [0.0e0] * 8
+            def distances = new Object[n]
+
+            n.times { i ->
+                def d0 = variance.sum()
+                nonnumeric_fields.each { if (o[i][it] != e[i][it]) variance[it] += 1 }
+                numeric_fields.each { j -> variance[j] += ((o[i][j] - o_mean[j]) - (e[i][j] - e_mean[j])) ** 2 }
+                distances[i] = [variance.sum() - d0, i]
+            }
+
+            numeric_fields.each { j -> variance[j] /= Math.sqrt(e_var[j]) * Math.sqrt(o_var[j]) }
+
+            if (variance.every { it < 0.0001 }) { p "Data values as expected." }
+
+            table(border:1) {
+                tr { variance.each { td(it.toString()) }}
+            }
+
+            br()
+
+            distances.sort(true) { a, b -> b[0] <=> a[0] }
+
+            table(border:1) {
+                distances.take(10).each { d, i ->
+                    tr { td('E') ; e[i].each { td(it.toString()) } }
+                    tr { td('O') ; o[i].eachWithIndex { v, j -> td(v.toString()) } }
+                }
+            }
+
+            if (sysLines.size() > dataCount) {
+                p "non-data lines"
+                pre sysLines.grep { !isDataLine(it) }.take(10).join('\n')
+            }
+        }
+
+        def beamsearch_maxent = { File executable, File expected ->
+            def executableModified = new File(executable.parentFile, executable.name + "-MODIFIED")
+            if (!executable.canExecute()) {
+                executableModified << "MADE EXECUTABLE\n"
+                // Make it executable by anybody.
+                executable.setExecutable(true, false)
+            }
+
+            if (executableModified.exists()) {
+                h3 'Executable Modified'
+                pre executable.path
+                pre executableModified.text
+            }
+
+
+            def outFile = new File(tmpDir, 'q2out.txt')
+            def errFile = new File(tmpDir, 'q2err.txt')
+            def sysFile = new File(tmpDir, 'q2res.txt')
+
+            def data_path = '/dropbox/12-13/572/hw6/examples/'
+
+            // beamsearch_maxent.sh test_data boundary_file model_file sys_output beam_size topN topK
+            // condor_run "./beamsearch_maxent.sh /dropbox/12-13/572/hw6/examples/sec19_21.txt /dropbox/12-13/572/hw6/examples/sec19_21.boundary /dropbox/12-13/572/hw6/examples/m1.txt q2/sys.txt 0 1 1 >q2/acc.txt"
+
+            def command = [executable, data_path + 'sec19_21.txt', data_path + 'sec19_21.boundary', data_path + 'm1.txt', sysFile.absolutePath, 0, 1, 1]
+
+            p {
+                pre(command.join(' '))
+            }
+
+            outFile.withOutputStream { stdout ->
+                errFile.withOutputStream { stderr ->
+                    def proc = command.execute(environment, executable.parentFile)
+                    proc.consumeProcessOutput(stdout, stderr)
+                    proc.waitFor()
+                    if (proc.exitValue()) {
+                        h3 'Error'
+                        p "exitValue: ${proc.exitValue()}"
+                    }
+                }
+            }
+
+            def errText = errFile.text
+            if (errText) {
+                h3 "stderr"
+                pre errText
+            }
+
+            h3 'System Output'
+            if (sysFile.exists()) {
+                beamsearch_expectation(sysFile, expected)
+            } else {
+                p "system output does not exist"
+            }
+
+            h3 "accuracy report:"
+            pre outFile.text
+        }
+
+        def text_file = { String name, File expected_content_file, int lines_to_show = 10 ->
             File file = report_config[name]
 
             h3 name
             if (file) {
-                def lines = file.readLines()
+                def lines = file.readLines().collect { it.trim() }
                 p "$name present as '.${file.path - report_config.content_dir.path}' and contains ${lines.size()} lines"
-                pre lines.take(10).join('\n')
+
+                if (expected_content_file) {
+                    p()
+                    p "expectation"
+
+                    def expected_lines = expected_content_file.readLines().collect { it.trim() }
+
+                    if (lines.size() != expected_lines.size()) {
+                        p "Wrong number of lines.  Expected ${expected_lines.size()} and got ${lines.size()}"
+                    } else {
+                        p "Got the expected number of lines ${expected_lines.size()}"
+                    }
+
+                    def mismatches = [1..(expected_lines.size()), lines, expected_lines].transpose().grep { it[1] != it[2]}
+
+                    if (mismatches) {
+                        p "There are ${mismatches.size()} mismatches"
+                        table {
+                            mismatches.take(lines_to_show).each { line_num, observed_line, expected_line ->
+                                tr { td(rowspan:2) { pre line_num } ; td(style:'border:solid 1px red') { pre observed_line } }
+                                tr { td(style:'border:solid 1px green') { pre expected_line } }
+                            }
+                        }
+                    } else {
+                        p "All lines match what is expected."
+                    }
+                }
+
+                pre lines.take(lines_to_show).join('\n')
+
             } else {
                 p "No file for $name"
             }
 
+        }
+
+        def svmlight_output_file = { String name, File observed_content_file, File expected_content_file, int lines_to_show = 10 ->
+            def lines = observed_content_file.readLines().collect { it.trim() }
+            p "$name present as '.${observed_content_file.path - report_config.content_dir.path}' and contains ${lines.size()} lines"
+
+            if (expected_content_file) {
+                p()
+                p "expectation"
+
+                def expected_lines = expected_content_file.readLines().collect { it.trim() }
+
+                if (lines.size() != expected_lines.size()) {
+                    p "Wrong number of lines.  Expected ${expected_lines.size()} and got ${lines.size()}"
+                } else {
+                    p "Got the expected number of lines ${expected_lines.size()}"
+                }
+
+                def mismatches = [1..(expected_lines.size()), lines, expected_lines].transpose().grep { it[1] != it[2]}
+
+                if (mismatches) {
+                    p "There are ${mismatches.size()} mismatches"
+                    table {
+                        mismatches.take(lines_to_show).each { line_num, observed_line, expected_line ->
+                            tr { td(rowspan:2) { pre line_num } ; td(style:'border:solid 1px red') { pre observed_line } }
+                            tr { td(style:'border:solid 1px green') { pre expected_line } }
+                        }
+                    }
+                } else {
+                    p "All lines match what is expected."
+                }
+            }
+
+            pre lines.take(lines_to_show).join('\n')
         }
 
         def binary_file = { String name ->
@@ -552,60 +765,108 @@ tmp_report_file.withPrintWriter {
 
         }
 
-        h2 "q1"
-        binary_file('m1')
-        text_file('m1.txt')
+        // hw7
 
-        h2 'q2/res'
-        File q2_res = report_config['res']
-        if (q2_res) {
-            classifier_expectation(q2_res, new File(expected_content_dir, 'q2/res'))
-        } else {
-            p "No q2/res file"
+//        [['model', 'sys'], 1..5].combinations()*.join('.').sort().each { file_key ->
+//            text_file(file_key, 20)
+//        }
+
+        [['model'], 1..5].combinations()*.join('.').sort().each { file_key ->
+            text_file(file_key, new File(hw7_expected_content_dir, "q1/" + file_key), 20)
+            hr()
         }
 
-        if (do_calculations) {
-            h2 "q2 - maxent_classify.sh"
-            File q2_executable = report_config['maxent_classify.sh']
-            if (q2_executable) {
-                maxent_classify q2_executable, new File(expected_content_dir, 'q2/res')
+        [['sys'], 1..5].combinations()*.join('.').sort().each { file_key ->
+            File file = report_config[file_key]
+            h3 file_key
+            if (file) {
+                svmlight_output_file(file_key, file, new File(hw7_expected_content_dir, "q2/" + file_key), 20)
             } else {
-                p "No executable for q2"
+                p "No file for $name"
+            }
+            hr()
+        }
+
+        // hw6
+        def hw6 = {
+//            def q2_res_key = new File(hw6_expected_content_dir, 'q2/res.txt')
+            def q2_res_key = new File(hw6_expected_content_dir, 'q2/gress_res.txt')
+            if (do_calculations) {
+                h2 "beamsearch_maxent.sh"
+                File q1_executable = report_config['beamsearch_maxent.sh']
+                if (q1_executable) {
+                    beamsearch_maxent q1_executable, q2_res_key
+                } else {
+                    p "No executable for q1"
+                }
+            } else {
+                h2 'q2/res.txt'
+                def q2_result = new File(report_config.content_dir, 'q2/res.txt')
+                if (q2_result.exists()) {
+                    beamsearch_expectation(q2_result, q2_res_key)
+                } else {
+                    p "No q2/res.txt"
+                }
+
+            }
+        }
+
+        // hw5
+        def hw5 = {
+            h2 "q1"
+            binary_file('m1')
+            text_file('m1.txt')
+
+            h2 'q2/res'
+            File q2_res = report_config['res']
+            if (q2_res) {
+                classifier_expectation(q2_res, new File(hw6_expected_content_dir, 'q2/res'))
+            } else {
+                p "No q2/res file"
             }
 
-            calc_exp('q3', 'calc_emp_exp.sh', new File(expected_content_dir, 'q3/emp_count'))
+            if (do_calculations) {
+                h2 "q2 - maxent_classify.sh"
+                File q2_executable = report_config['maxent_classify.sh']
+                if (q2_executable) {
+                    maxent_classify q2_executable, new File(hw6_expected_content_dir, 'q2/res')
+                } else {
+                    p "No executable for q2"
+                }
 
-            calc_exp('q4d', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count'))
+                calc_exp('q3', 'calc_emp_exp.sh', new File(hw6_expected_content_dir, 'q3/emp_count'))
 
-            calc_exp('q4f', 'calc_model_exp.sh', new File(expected_content_dir, 'q4/model_count2'), new File(expected_content_dir, 'q1/m1.txt'))
-        }
+                calc_exp('q4d', 'calc_model_exp.sh', new File(hw6_expected_content_dir, 'q4/model_count'))
 
-        [['emp_count', 'q3/emp_count'], ['model_count', 'q4/model_count'], ['model_count2', 'q4/model_count2']].each { String kt, String file_p ->
-            h2 file_p
-            File f = report_config[kt]
-            if (f) {
-                expectation_expectation(f, new File(expected_content_dir, file_p))
+                calc_exp('q4f', 'calc_model_exp.sh', new File(hw6_expected_content_dir, 'q4/model_count2'), new File(hw6_expected_content_dir, 'q1/m1.txt'))
+            }
+
+            [['emp_count', 'q3/emp_count'], ['model_count', 'q4/model_count'], ['model_count2', 'q4/model_count2']].each { String kt, String file_p ->
+                h2 file_p
+                File f = report_config[kt]
+                if (f) {
+                    expectation_expectation(f, new File(hw6_expected_content_dir, file_p))
+                } else {
+                    p "No $file_p file"
+                }
+            }
+
+            h2 "q1 - build_kNN.sh"
+            File q1_executable = report_config['build_kNN.sh']
+            if (q1_executable) {
+                q1 q1_executable
             } else {
-                p "No $file_p file"
+                p "No executable for q1"
+            }
+
+            h2 "q3 - rank_feat_by_chi_square.sh"
+            File q3_executable = report_config['rank_feat_by_chi_square.sh']
+            if (q3_executable) {
+                q3 q3_executable
+            } else {
+                p "No executable for q3"
             }
         }
-
-
-//        h2 "q1 - build_kNN.sh"
-//        File q1_executable = report_config['build_kNN.sh']
-//        if (q1_executable) {
-//            q1 q1_executable
-//        } else {
-//            p "No executable for q1"
-//        }
-//
-//        h2 "q3 - rank_feat_by_chi_square.sh"
-//        File q3_executable = report_config['rank_feat_by_chi_square.sh']
-//        if (q3_executable) {
-//            q3 q3_executable
-//        } else {
-//            p "No executable for q3"
-//        }
 
         br()
         hr()
