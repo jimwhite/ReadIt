@@ -68,7 +68,7 @@ new File(submissions_dir, 'run_all.sh').withPrintWriter { run_script ->
         if (content_dir.exists()) {
             def report_file = new File(dir, 'report.groovy')
             report_file.withPrintWriter { report_writer ->
-                locate_files(student_id, content_dir.absoluteFile, report_writer, locations)
+                locate_files(homework, student_id, content_dir.absoluteFile, report_writer, locations)
             }
             report_file.setExecutable(true)
             evaluate(report_file)
@@ -134,14 +134,15 @@ def unpack_it(String student_id, File dir, File content_dir)
 
 }
 
-def locate_files(String student_id, File content_dir, PrintWriter report, List locations)
+def locate_files(String homework, String student_id, File content_dir, PrintWriter report, List locations)
 {
     report << """// Homework Report Config
 
 student_id='$student_id'
 content_path='$content_dir'
 content_dir=new File(content_path)
-report_config=[student_id:student_id, content_path:content_path, content_dir:content_dir]
+homework='$homework'
+report_config=[student_id:student_id, content_path:content_path, content_dir:content_dir, homework:homework]
 """
 
 //    report << """#!/usr/bin/env groovy

@@ -31,6 +31,8 @@ def hw6_expected_content_dir = new File('/home2/ling572_00/hw6/_key/content')
 //def hw7_expected_content_dir = new File('/home2/ling572_00/hw7/gress/content')
 def hw7_expected_content_dir = new File(report_config.content_dir, '../../gress/content')
 
+def hw8_expected_content_dir = new File(report_config.content_dir, '../../wpack/content')
+
 whitespace_pattern = ~/\s+/
 number_pattern_str = /[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))[-+Ee.\d]*/
 number_pattern = ~number_pattern_str
@@ -906,40 +908,41 @@ tmp_report_file.withPrintWriter {
 
         // hw7
 
+        def hw7 = {
 //        [['model', 'sys'], 1..5].combinations()*.join('.').sort().each { file_key ->
 //            text_file(file_key, 20)
 //        }
 
-        [['model'], 1..5].combinations()*.join('.').sort().each { file_key ->
-            text_file(file_key, new File(hw7_expected_content_dir, "q1/" + file_key), 20)
-            hr()
-        }
+            [['model'], 1..5].combinations()*.join('.').sort().each { file_key ->
+                text_file(file_key, new File(hw7_expected_content_dir, "q1/" + file_key), 20)
+                hr()
+            }
 
-        [['sys'], 1..5].combinations()*.join('.').sort().each { file_key ->
-            File file = report_config[file_key]
-            h3 file_key
-            if (file) {
+            [['sys'], 1..5].combinations()*.join('.').sort().each { file_key ->
+                File file = report_config[file_key]
+                h3 file_key
+                if (file) {
 //                svmlight_output_file(file_key, file, new File(hw7_expected_content_dir, "q2/" + file_key), 20)
-                svm_sys_expectation(file, new File(hw7_expected_content_dir, "q2/" + file_key))
-            } else {
-                p "No file for $file_key"
-            }
-            hr()
-        }
-
-        if (do_calculations) {
-            File svm_classifier_executable = report_config['svm_classify.sh']
-            if (svm_classifier_executable) {
-                (1..5).each { model_num ->
-                    h2 "Run svm_classify.sh on $model_num"
-                    svm_classification(svm_classifier_executable, new File(hw7_expected_content_dir, "q1/model." + model_num), new File(hw7_expected_content_dir, "q2/sys." + model_num))
-                    hr()
+                    svm_sys_expectation(file, new File(hw7_expected_content_dir, "q2/" + file_key))
+                } else {
+                    p "No file for $file_key"
                 }
-            } else {
-                h2 "No svm_classify.sh!"
+                hr()
+            }
+
+            if (do_calculations) {
+                File svm_classifier_executable = report_config['svm_classify.sh']
+                if (svm_classifier_executable) {
+                    (1..5).each { model_num ->
+                        h2 "Run svm_classify.sh on $model_num"
+                        svm_classification(svm_classifier_executable, new File(hw7_expected_content_dir, "q1/model." + model_num), new File(hw7_expected_content_dir, "q2/sys." + model_num))
+                        hr()
+                    }
+                } else {
+                    h2 "No svm_classify.sh!"
+                }
             }
         }
-
         // hw6
         def hw6 = {
 //            def q2_res_key = new File(hw6_expected_content_dir, 'q2/res.txt')
@@ -1021,8 +1024,100 @@ tmp_report_file.withPrintWriter {
             }
         }
 
+        // hw8
+
+        def tbl_output_file = { String name, File expected_content_file, int lines_to_show = 10 ->
+            File file = report_config[name]
+
+            h3 name
+            if (file) {
+                def lines = file.readLines().collect { it.trim().split(/\s+/).tail().join(' ') }
+                p "$name present as '.${file.path - report_config.content_dir.path}' and contains ${lines.size()} lines"
+
+                if (expected_content_file) {
+                    p()
+                    p "expectation"
+
+                    def expected_lines = expected_content_file.readLines().collect { it.trim().split(/\s+/).tail().join(' ') }
+
+                    if (lines.size() != expected_lines.size()) {
+                        p "Wrong number of lines.  Expected ${expected_lines.size()} and got ${lines.size()}"
+                    } else {
+                        p "Got the expected number of lines ${expected_lines.size()}"
+                    }
+
+                    def mismatches = [1..(expected_lines.size()), lines, expected_lines].transpose().grep { it[1] != it[2]}
+
+                    if (mismatches) {
+                        p "There are ${mismatches.size()} mismatches"
+                        table {
+                            mismatches.take(lines_to_show).each { line_num, observed_line, expected_line ->
+                                tr { td(rowspan:2) { pre line_num } ; td(style:'border:solid 1px red') { pre observed_line } }
+                                tr { td(style:'border:solid 1px green') { pre expected_line } }
+                            }
+                        }
+                    } else {
+                        p "All lines match what is expected."
+                    }
+                }
+
+                pre lines.take(25).join('\n')
+
+            } else {
+                p "No file for $name"
+            }
+
+        }
+
+        def tbl_classification = { File executable, File model, File expected ->
+            def executableModified = new File(executable.parentFile, executable.name + "-MODIFIED")
+            if (!executable.canExecute()) {
+                executableModified << "MADE EXECUTABLE\n"
+                // Make it executable by anybody.
+                executable.setExecutable(true, false)
+            }
+
+            if (executableModified.exists()) {
+                h3 'Executable Modified'
+                pre executable.path
+                pre executableModified.text
+            }
+            p()
+            pre executable.readLines().take(10)
+        }
+
+
+        def hw8 = {
+            if (do_calculations) {
+                File tbl_train_executable = report_config['TBL_train.sh']
+                if (tbl_train_executable) {
+                    h2 "Run TBL_train.sh"
+                    tbl_classification(tbl_train_executable, new File(hw7_expected_content_dir, "q1/model."), new File(hw7_expected_content_dir, "q2/sys."))
+                } else {
+                    h2 "No TBL_train.sh!"
+                }
+
+                File tbl_classify_executable = report_config['TBL_classify.sh']
+                if (tbl_classify_executable) {
+                    h2 "Run TBL_classify.sh"
+                    tbl_classification(tbl_classify_executable, new File(hw7_expected_content_dir, "q1/model."), new File(hw7_expected_content_dir, "q2/sys."))
+                } else {
+                    h2 "No TBL_classify.sh!"
+                }
+            }
+
+            text_file('model', new File(hw8_expected_content_dir, "q3.model"), 100)
+            hr()
+
+            tbl_output_file('output', new File(hw8_expected_content_dir, "q3.sysout_all_transformations"), 300)
+            hr()
+        }
+
+        switch(report_config.homework) {
+            case 'hw8' : hw8() ; break
+        }
+
         br()
-        hr()
     }
 
 }
