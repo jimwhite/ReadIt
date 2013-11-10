@@ -61,12 +61,21 @@ public class Sequence implements Serializable {
 		super();
 	}
 
+    /**
+     * Constructor
+     *
+     * @param sequence
+     */
+    public Sequence(String sequence, Analyzer analyzer) throws IOException {
+        this(sequence, analyzer, Integer.MAX_VALUE);
+    }
+
 	/**
 	 * Constructor
 	 * 
 	 * @param sequence
 	 */
-	public Sequence(String sequence, Analyzer analyzer) throws IOException {
+	public Sequence(String sequence, Analyzer analyzer, int max_length) throws IOException {
 		super();
 		this.sequence = sequence;
 
@@ -75,7 +84,7 @@ public class Sequence implements Serializable {
 
         Vector<Token> tokenVector = new Vector<Token>();
 
-        while(stream.incrementToken()) {
+        while (stream.incrementToken() && tokenVector.size() < max_length) {
 //            Token token = new Token();
 //            Token token = (Token) stream.getAttribute(CharTermAttribute.class);
             Token token = (Token) tokenAttributeFactory.createAttributeInstance(Token.class);
@@ -202,7 +211,7 @@ public class Sequence implements Serializable {
 //	}
 
 	/**
-	 * Returns the sequence as an array of characters.
+	 * Returns the sequence as an array of tokens.
 	 * 
 	 * @return array of chars.
 	 */

@@ -17,6 +17,7 @@ import org.apache.lucene.search.PrefixQuery
 import org.apache.lucene.search.Query
 import org.apache.lucene.search.Sort
 import org.apache.lucene.search.TermQuery
+import org.apache.lucene.search.similar.MoreLikeThis
 import org.apache.lucene.search.spans.FieldMaskingSpanQuery
 import org.apache.lucene.search.spans.SpanFirstQuery
 import org.apache.lucene.search.spans.SpanMultiTermQueryWrapper
@@ -38,9 +39,20 @@ class Retriever
     def indexDirectory = FSDirectory.open(index_dir)
 
     def reader = DirectoryReader.open(indexDirectory, true)
+
     def searcher = new IndexSearcher(indexDirectory)
     def analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT)
     def parser = new QueryParser(Version.LUCENE_CURRENT, "contents", analyzer)
+
+    final static FILE_QUERY_ALL = '*'
+    final static FILE_QUERY_ALL_TEXT = '*text'
+    final static FILE_QUERY_README = 'README'
+    final static FILE_QUERY_INSTALL = 'INSTALL'
+    final static FILE_QUERY_SEARCH_FOR_DESCRIPTION = '?description'
+
+    Retriever()
+    {
+    }
 
     List<String> list_packages()
     {
@@ -83,6 +95,66 @@ class Retriever
         }
 
         def hits = searcher.search(query, 10000 /*, Sort.INDEXORDER*/)
+
+        hits.scoreDocs.collect { hit -> searcher.doc(hit.doc) }
+    }
+
+    List<Document> list_package_files_with_name(String package_id, String file_name, boolean text_only = false)
+    {
+        def queryType = new TermQuery(new Term('type', 'file'))
+        def queryPackageName = new TermQuery(new Term('package.name', package_id))
+        def queryFileName = new TermQuery(new Term('file.name', file_name))
+        def query = new BooleanQuery()
+        query.add(queryType, BooleanClause.Occur.MUST)
+        query.add(queryPackageName, BooleanClause.Occur.MUST)
+        query.add(queryFileName, BooleanClause.Occur.MUST)
+
+        if (text_only) {
+            query.add(new PrefixQuery(new Term('file.mime_type', 'text/')), BooleanClause.Occur.MUST)
+        }
+
+        def hits = searcher.search(query, 10000 /*, Sort.INDEXORDER*/)
+
+        hits.scoreDocs.collect { hit -> searcher.doc(hit.doc) }
+    }
+
+    def interestingTerms(String description)
+    {
+        def moreLikeThis = new MoreLikeThis(reader)
+        moreLikeThis.minTermFreq = 0
+        moreLikeThis.minDocFreq = 0
+
+        moreLikeThis.retrieveInterestingTerms(new StringReader(description), 'contents')
+    }
+
+    List<Document> list_package_files_like_description(String package_id, String description, boolean text_only = false)
+    {
+        def moreLikeThis = new MoreLikeThis(reader)
+        moreLikeThis.minTermFreq = 0
+        moreLikeThis.minDocFreq = 0
+
+        BooleanQuery query = new BooleanQuery()
+
+        def queryFileType = new TermQuery(new Term('type', 'file'))
+        queryFileType.boost = 0
+        query.add(queryFileType, BooleanClause.Occur.MUST)
+
+//        def queryPackageName = new TermQuery(new Term('package.name', package_id))
+//        queryPackageName.boost = 0
+//        query.add(queryPackageName, BooleanClause.Occur.MUST)
+
+        if (text_only) {
+            def queryMimeType = new PrefixQuery(new Term('file.mime_type', 'text/'))
+            queryMimeType.boost = 0
+            query.add(queryMimeType, BooleanClause.Occur.MUST)
+        }
+
+//        println (moreLikeThis.retrieveInterestingTerms(new StringReader(description), 'contents'))
+
+        def likeDescriptionQuery = moreLikeThis.like(new StringReader(description), 'contents')
+        query.add(likeDescriptionQuery, BooleanClause.Occur.SHOULD)
+
+        def hits = searcher.search(query, 20)
 
         hits.scoreDocs.collect { hit -> searcher.doc(hit.doc) }
     }

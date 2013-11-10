@@ -57,8 +57,9 @@ class AppRunner extends DirWatcher {
   RatpackApp app
   Server server
   File script
+    def server_port = System.getProperty('ratpack.port', '0') as Integer
 
-  AppRunner(String script, String path) {
+    AppRunner(String script, String path) {
     super(path)
     this.script = new File(path, script)
   }
@@ -73,6 +74,8 @@ class AppRunner extends DirWatcher {
       app = new RatpackApp()
 
       app.prepareScriptForExecutionOnApp(script)
+
+      if (server_port) app.config.port = server_port
 
       // Runs this RatpackApp in a Jetty container
       def servlet = new RatpackServlet()

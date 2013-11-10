@@ -11,6 +11,27 @@
     <orderEntry type="library" name="groovy-1.8.8" level="application" />
     <orderEntry type="library" name="gate" level="project" />
     <orderEntry type="library" name="xmlwise-debug-1_2" level="project" />
+    <orderEntry type="module-library">
+      <library name="Grab:jfreechart-1.0.5.jar">
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.groovy/grapes/jfree/jfreechart/jars/jfreechart-1.0.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/lib/jfreechart-1.0.5-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="Grab:jcommon-1.0.9.jar">
+        <CLASSES>
+          <root url="jar://$USER_HOME$/.groovy/grapes/jfree/jcommon/jars/jcommon-1.0.9.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="library" name="groovy-1.8.8" level="application" />
   </component>
 </module>
 

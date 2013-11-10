@@ -152,8 +152,37 @@ get("/package/:package_id")
     {
         def package_id = urlparams.package_id
         def package_doc = retriever.package_doc(package_id)
-        def file_docs = retriever.list_package_files(package_id, true)
-        file_docs = file_docs.sort { it.get('file.shebang')+ '~' + it.get('file.mime_type') + '~' + it.get('file.name') }
+
+        def spec_file_path = package_doc.get('package.spec_expanded')
+        def description_field = RPM_SPEC.Section.DESCRIPTION.token
+        def spec = retriever.parse_spec_file(spec_file_path)
+        def package_fields = spec['']
+
+        def section = RPM_SPEC.token_to_section[description_field]
+        def description = package_fields[section]
+
+        def file_docs = []
+
+        switch (params.file_query) {
+            case Retriever.FILE_QUERY_ALL :
+            case Retriever.FILE_QUERY_ALL_TEXT :
+                file_docs = retriever.list_package_files(package_id, params.file_query == Retriever.FILE_QUERY_ALL_TEXT)
+                // file_docs = file_docs.sort { it.get('file.shebang')+ '~' + it.get('file.mime_type') + '~' + it.get('file.name') }
+                file_docs = file_docs.sort { a, b ->
+                    a.get('file.shebang') <=> b.get('file.shebang') ?:
+                        a.get('file.mime_type') <=> b.get('file.mime_type') ?:
+                            a.get('file.name') <=> b.get('file.name') }
+                break
+
+            case Retriever.FILE_QUERY_README :
+            case Retriever.FILE_QUERY_INSTALL :
+                file_docs = retriever.list_package_files_with_name(package_id, params.file_query)
+                break
+
+            case Retriever.FILE_QUERY_SEARCH_FOR_DESCRIPTION :
+                file_docs = retriever.list_package_files_like_description(package_id, description, true)
+        }
+
         new StreamingMarkupBuilder().bind {
             html {
                 head { title('Package ' + package_id) }
@@ -163,6 +192,18 @@ get("/package/:package_id")
                         tr {
                             td('Name')
                             td(package_id)
+                        }
+                        tr {
+                            td('Description')
+                            td {
+                                pre description
+                            }
+                        }
+                        tr {
+                            td('Interesting Terms')
+                            td {
+                                p(retriever.interestingTerms(description).join(', '))
+                            }
                         }
                         tr {
                             td('Spec')
@@ -183,8 +224,26 @@ get("/package/:package_id")
                             }
                         }
                         tr {
+                            td(params.file_query)
+                            td {
+                                a(href:href_package(package_id), 'No Files')
+                                span(' ')
+                                a(href:href_package(package_id, Retriever.FILE_QUERY_ALL), 'All Files')
+                                span(' ')
+                                a(href:href_package(package_id, Retriever.FILE_QUERY_ALL_TEXT), 'Text Files')
+                                span(' ')
+                                a(href:href_package(package_id, Retriever.FILE_QUERY_README), 'READMEs')
+                                span(' ')
+                                a(href:href_package(package_id, Retriever.FILE_QUERY_INSTALL), 'INSTALLs')
+                                span(' ')
+                                a(href:href_package(package_id, Retriever.FILE_QUERY_SEARCH_FOR_DESCRIPTION), 'Top Hits like Description')
+                            }
+                        }
+                        tr {
                             td('Files')
-                            td(file_docs.size())
+                            td {
+                                span(file_docs.size())
+                            }
                         }
                     }
                     p()
@@ -196,6 +255,7 @@ get("/package/:package_id")
                                 td(doc.get('file.shebang'))
                                 td(doc.get('file.name'))
                                 td(doc.get('file.size'))
+                                td(text_alignment(description, new File(doc.get('file.path')).text).score)
                                 td {
                                     a(href:link, doc.get('file.build_path'))
                                 }
@@ -294,7 +354,17 @@ get("/showspec")
     }
 }
 
-MAX_SEQUENCE_LENGTH = 150
+MAX_SEQUENCE_LENGTH = 1000
+
+def text_alignment(String text_a, String text_b)
+{
+    def a = new Sequence(text_a, analyzer, MAX_SEQUENCE_LENGTH)
+
+    def b = new Sequence(text_b, analyzer)
+
+//    SmithWatermanGotoh.align(a, b, new JaroWinklerSimilarity(), 10, 6, 10)
+    SmithWatermanGotoh.align(a, b, new LevenshteinDistance(), 8, 4, 10)
+}
 
 get("/search")
 {
@@ -315,19 +385,10 @@ get("/search")
     def section = RPM_SPEC.token_to_section[search_field]
     def search_string = package_fields[section]
 
-//    println search_string
+    def alignment = text_alignment(search_string, new File(file_path).text)
 
-    def text = new File(file_path).text
-
-    def a = new Sequence(search_string, analyzer)
-    a.id = search_field
-    if (a.length() > MAX_SEQUENCE_LENGTH) a.tokens = a.tokens[0..<MAX_SEQUENCE_LENGTH]
-
-    def b = new Sequence(text, analyzer)
-    b.id = file_path
-
-//    def alignment = SmithWatermanGotoh.align(a, b, new JaroWinklerSimilarity(), 10, 6, 10)
-    def alignment = SmithWatermanGotoh.align(a, b, new LevenshteinDistance(), 8, 4, 10)
+    alignment.name1 = search_field
+    alignment.name2 = file_path
 
     new StreamingMarkupBuilder().bind {
         html {
@@ -437,6 +498,11 @@ td.gap { background : LightGrey }
 String href_package(String package_id)
 {
     '/package/'+package_id
+}
+
+String href_package(String package_id, String file_query)
+{
+    "/package/$package_id?file_query=$file_query"
 }
 
 String href_package_field(String package_id, String field)

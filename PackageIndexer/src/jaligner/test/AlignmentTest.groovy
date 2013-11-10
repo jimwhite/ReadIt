@@ -13,8 +13,8 @@ import org.apache.lucene.util.Version
 
 def analyzer = new WhitespaceAnalyzer()
 
-//def a = new Sequence(" How now brown cow? The quick brown fox jumped over the lazy dog! ")
-//def b = new Sequence(" The brown cox quickly jumped over the dog ")
+def a = new Sequence(" How now brown cow? The quick brown fox jumped over the lazy dog! ", analyzer)
+def b = new Sequence(" The brown box quickly jumped over the dog ", analyzer)
 
 //def ta = new File('/mnt/LINUX_RPM/packages/qjson/BUILD/qjson/README').text
 //def a = new Sequence(ta, analyzer)
@@ -38,12 +38,12 @@ def analyzer = new WhitespaceAnalyzer()
 //
 //""", analyzer)
 
-def ta = new File('/mnt/LINUX_RPM/packages/eekboard/BUILD/eekboard-1.0.7/README').text
-def a = new Sequence(ta, analyzer)
-
-def b = new Sequence("""eekboard is a virtual keyboard software package, including a set of
-tools to implement desktop virtual keyboards.
-""", analyzer)
+//def ta = new File('/mnt/LINUX_RPM/packages/eekboard/BUILD/eekboard-1.0.7/README').text
+//def a = new Sequence(ta, analyzer)
+//
+//def b = new Sequence("""eekboard is a virtual keyboard software package, including a set of
+//tools to implement desktop virtual keyboards.
+//""", analyzer)
 
 println b
 

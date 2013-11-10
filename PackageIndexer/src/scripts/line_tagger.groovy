@@ -1,9 +1,16 @@
 package scripts
 
-/**
- * Created with IntelliJ IDEA.
- * User: jim
- * Date: 1/15/13
- * Time: 2:07 AM
- * To change this template use File | Settings | File Templates.
- */
+// Simple example from GATE Manual works dandy for tagging lines.
+
+//matcher = content =~ /(?m)^.*$/
+matcher = content =~ scriptParams.regex
+
+//println content.size()
+//println scriptParams.type
+
+while(matcher.find()) {
+//    println "${matcher.start()} ${matcher.end()}"
+    outputAS.add(matcher.start(), matcher.end(), scriptParams.type, Factory.newFeatureMap())
+}
+
+//println "Done"

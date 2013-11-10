@@ -21,3 +21,6 @@ use (Utils) {
     def aDocument = Factory.createResource("gate.compound.impl.CompoundDocumentImpl", [:].toFeatureMap())
     println aDocument
 }
+
+
+new File("foo").withPrintWriter { it.println() }

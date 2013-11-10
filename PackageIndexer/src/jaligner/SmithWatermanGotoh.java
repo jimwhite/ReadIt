@@ -69,9 +69,9 @@ public final class SmithWatermanGotoh {
 	 * Aligns two sequences by Smith-Waterman (local)
 	 * 
 	 * @param s1
-	 *            sequene #1 ({@link Sequence})
+	 *            sequence #1 ({@link Sequence})
 	 * @param s2
-	 *            sequene #2 ({@link Sequence})
+	 *            sequence #2 ({@link Sequence})
 	 * @param matrix
 	 *            scoring matrix ({@link Matrix})
 	 * @param o

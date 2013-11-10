@@ -37,13 +37,18 @@ parser = new QueryParser(Version.LUCENE_CURRENT, "contents", analyzer)
 query = new BooleanQuery()
 
 while (args && (args.head().startsWith('--'))) {
-    def field = args.remove(0).substring(2)
-    def value = args.remove(0)
+    String field = args.remove(0).substring(2)
+    String value = args.remove(0)
 
     def occur = BooleanClause.Occur.MUST
     if (field.startsWith('-')) {
         field = field.substring(1)
         occur = BooleanClause.Occur.MUST_NOT
+    }
+
+    if (field.startsWith('~')) {
+        field = field.substring(1)
+        query.add(parser.getFieldQuery(field, value, true), occur)
     }
 
     query.add(field == 'subject' ? parser.getFieldQuery('subject', value, true) : new TermQuery(new Term(field, value)), occur)
@@ -52,6 +57,8 @@ while (args && (args.head().startsWith('--'))) {
 if (args) {
     query.add(parser.parse(args.join(' ')), BooleanClause.Occur.MUST)
 }
+
+//query = parser.parse(args.join(' '))
 
 do_query(query)
 
