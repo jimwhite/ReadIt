@@ -44,6 +44,8 @@ class Retriever
     def analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT)
     def parser = new QueryParser(Version.LUCENE_CURRENT, "contents", analyzer)
 
+    Map<File, Map<String, Map<RPM_SPEC.Section, String>>> spec_cache = [:]
+
     final static FILE_QUERY_ALL = '*'
     final static FILE_QUERY_ALL_TEXT = '*text'
     final static FILE_QUERY_README = 'README'
@@ -201,33 +203,26 @@ class Retriever
         }
     }
 
-    def spec_for_package(String package_id)
+    Map<String, Map<RPM_SPEC.Section, String>> spec_for_package(String package_id, boolean expanded = false)
     {
-//        String spec_file_path = package_info(package_id, 'package.spec_expanded')
-        String spec_file_path = package_info(package_id, 'package.spec')
+        String spec_file_path = package_info(package_id, expanded ? 'package.spec_expanded' : 'package.spec')
 
-        if (!spec_file_path) return null
-
-        try {
-            def spec_text = new File(spec_file_path).text
-
-            return RPM_SPEC.parse(spec_text)
-        } catch (IOException ex) {
-            ex.printStackTrace()
-            return null
-        }
+        spec_file_path ? parse_spec_file(new File(spec_file_path)) : null
     }
 
-    def parse_spec_file(spec_file_path)
+    Map<String, Map<RPM_SPEC.Section, String>> parse_spec_file(File spec_file)
     {
-        try {
-            def spec_text = new File(spec_file_path).text
+        if (!spec_cache.containsKey(spec_file)) {
+            try {
+                def spec_text = spec_file.text
 
-            return RPM_SPEC.parse(spec_text)
-        } catch (IOException ex) {
-            ex.printStackTrace()
-            return null
+                spec_cache[spec_file] = RPM_SPEC.parse(spec_text)
+            } catch (IOException ex) {
+                ex.printStackTrace()
+            }
         }
+
+        spec_cache[spec_file]
     }
 
     List<Range> searchInFile(String file_path, String text, int slop)

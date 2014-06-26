@@ -1,5 +1,7 @@
 package org.ifcx.readit.index
 
+import java.util.regex.Pattern
+
 public class RPM_SPEC
 {
     public static enum Section
@@ -73,5 +75,23 @@ public class RPM_SPEC
     void section_append(String s)
     {
         section_text = section_text ? section_text + '\n' + s : s
+    }
+
+    static Pattern key_value_pattern = ~/s*([^:\s]+)\s*:(.*)$/
+    static List parse_package_section(String package_section) {
+        List values = []
+//        package_section.eachMatch(~/\s*([^:\s])+\s*:(.*)$/) { key, value -> values.add([key:key, value:value.trim()]) }
+        package_section.eachLine {
+            it = it.trim()
+            if (it && !it.startsWith('#')) {
+                def matcher = key_value_pattern.matcher(it)
+                if (matcher.matches()) {
+                    def key = matcher.group(1)
+                    def value = matcher.group(2)
+                    values.add([key:key.toLowerCase(), value:value.trim()])
+                }
+            }
+        }
+        values
     }
 }

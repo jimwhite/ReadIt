@@ -24,7 +24,7 @@ retriever = new Retriever()
 processor = new GATE_Processor()
 analyzer = new WhitespaceAnalyzer()
 
-package_names = retriever.list_packages()
+package_ids = retriever.list_packages().sort()
 
 new_slot = ''
 new_pattern = ''
@@ -44,15 +44,215 @@ get("/") {
 }
 
 get("/packages") {
+    def start_index = (params.start ?: "0") as Integer
+    def limit_index = [start_index + (params.limit ? params.limit as Integer : 25), package_ids.size()].min()
+
     new StreamingMarkupBuilder().bind {
         html {
             head { title('Packages') }
             body {
-                p 'Packages'
-    //                    p "Queries"
-                p {
-    //                        package_names.each { id -> a(href:href_query(id), id); span(' ') ; span(query_memo[id].name ) ; br() }
-                    package_names.each { package_name -> a(href:href_package(package_name), package_name) ; br() }
+                h1 'Packages'
+                table(border:1) {
+                    tr { td("PackageID") ; td("SubID"); td("Group")  ; td("Version") ; td("URL") ; td("License") ; td("Summary")}
+                    package_ids[start_index..<limit_index].each { package_id ->
+                        def spec = retriever.spec_for_package(package_id, true)
+                        spec.each { sub_id, Map sections ->
+                            String subpackage_id = sub_id ? "$package_id-$sub_id" : package_id
+                            def package_section = sections[RPM_SPEC.Section.PACKAGE]
+                            if (package_section) {
+                                List fields = RPM_SPEC.parse_package_section(package_section)
+                                tr {
+                                    td { a(href: href_package(package_id), package_id) }
+                                    td (sub_id)
+                                    td (getField(fields, "group"))
+                                    td (getField(fields, "version"))
+                                    td (getField(fields, "url"))
+                                    td (getField(fields, "license"))
+                                    td (getField(fields, "summary"))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }.toString()
+}
+
+private String getField(List fields, String fn) {
+    (fields.find { it.key == fn }?.value) ?: ''
+}
+
+get("/packages-tsv") {
+    def sw = new StringWriter()
+    sw.withPrintWriter { printer ->
+        printer.println (["PackageID", "PackageURL", "SubID", "Group", "Version", "URL", "License", "Summary"].join('\t'))
+        package_ids.each { package_id ->
+            def spec = retriever.spec_for_package(package_id, true)
+            spec.each { sub_id, Map sections ->
+                String subpackage_id = sub_id ? "$package_id-$sub_id" : package_id
+                def package_section = sections[RPM_SPEC.Section.PACKAGE]
+                if (package_section) {
+                    List fields = RPM_SPEC.parse_package_section(package_section)
+                    printer.println ([package_id, href_package(package_id), sub_id,
+                            getField(fields, "group"), getField(fields, "version"),
+                            getField(fields, "url"), getField(fields, "license"),
+                            getField(fields, "summary")].join('\t'))
+                }
+            }
+        }
+    }
+    sw.toString()
+}
+
+Map get_package_stats() {
+    Map package_stats = [:] as TreeMap
+    package_ids.each { package_id ->
+        def expanded_spec = ((Retriever)retriever).spec_for_package(package_id, true)
+        def spec = retriever.spec_for_package(package_id)
+
+        expanded_spec.each { sub_id, Map sections ->
+            String subpackage_id = sub_id ? "$package_id-$sub_id" : package_id
+            def package_section = sections[RPM_SPEC.Section.PACKAGE]
+            if (package_section) {
+                def hasBUILD = sections.containsKey(RPM_SPEC.Section.BUILD)
+                def build_section_line_count = 0
+
+                if (hasBUILD) {
+                    def spec_sections = spec[sub_id]
+                    String build_section = spec_sections[RPM_SPEC.Section.BUILD]
+                    build_section?.eachLine {
+                        it = it.trim()
+                        if (it && !it.startsWith('#')) build_section_line_count += 1
+                    }
+                }
+
+                package_stats[subpackage_id] = [
+                        package_id:package_id, subpackage_id:subpackage_id
+                        , hasBUILD: hasBUILD, build_section_line_count:build_section_line_count
+                        , requires:[] as Set, buildRequires:[] as Set
+                        , requires_dependents:[] as Set, buildRequires_dependents:[] as Set
+                ]
+            } else {
+                println "Warning: Missing PACKAGE section for $subpackage_id in $package_id"
+            }
+        }
+    }
+
+    package_ids.each { package_id ->
+        def spec = retriever.spec_for_package(package_id, true)
+
+        spec.each { sub_id, Map sections ->
+            String subpackage_id = sub_id ? "$package_id-$sub_id" : package_id
+            def stats = package_stats[subpackage_id]
+            def package_section = sections[RPM_SPEC.Section.PACKAGE]
+            if (stats && package_section) {
+                List fields = RPM_SPEC.parse_package_section(package_section)
+                fields.each { field ->
+                    switch (field.key) {
+                        case 'requires' :
+                            def requires_dependencies = parse_dependency_list(field.value)
+                            requires_dependencies = requires_dependencies.grep { package_stats[it]?.hasBUILD }
+                            stats.requires += requires_dependencies
+                            if (stats.hasBUILD)
+                                requires_dependencies.each { package_stats[it].requires_dependents << subpackage_id }
+                            break
+                        case 'buildrequires' :
+                            def buildRequires_dependencies = parse_dependency_list(field.value)
+                            buildRequires_dependencies = buildRequires_dependencies.grep { package_stats[it]?.hasBUILD }
+                            stats.buildRequires += buildRequires_dependencies
+                            if (stats.hasBUILD)
+                                buildRequires_dependencies.each { package_stats[it].buildRequires_dependents << subpackage_id }
+                            break
+                    }
+                }
+            }
+        }
+    }
+
+    package_stats
+}
+
+def List parse_dependency_list(String dependencies) {
+    List dependency_list = []
+    dependencies.split(',').each {
+        def (_, d) = (it =~ /\s*([-\w]+).*/)[0]
+        dependency_list += d
+    }
+    dependency_list
+}
+
+get("/package-stats") {
+    new StreamingMarkupBuilder().bind {
+        html {
+            head { title('Packages') }
+            body {
+                h1 'Packages'
+                table {
+                    def packageStats = get_package_stats()
+                    h2 "${packageStats.size()} packages and subpackages"
+                    def topLevelPackages = [] as Set
+                    def total_build_section_line_count = 0
+                    def packages_with_build_section = 0
+
+                    def leaf_count = 0
+                    def internal_count = 0
+                    def internal_dependents_count = 0
+
+                    def build_target_of_leaf_count = 0
+                    def build_dependent_leaf_count = 0
+
+                    packageStats.each { String package_id, Map stats ->
+                        if (stats.hasBUILD && (stats.requires || stats.buildRequires || stats.requires_dependents || stats.buildRequires_dependents)) {
+                            tr {
+//                                td (stats.subpackage_id)
+                                topLevelPackages += stats.package_id
+                                total_build_section_line_count += stats.build_section_line_count
+                                packages_with_build_section += 1
+
+                                if (!(stats.requires_dependents || stats.buildRequires_dependents)) {
+                                    leaf_count += 1
+                                } else {
+                                    internal_count += 1
+                                    internal_dependents_count += stats.buildRequires_dependents.size() + stats.requires_dependents.size()
+                                }
+
+                                def build_dependent_leaves = stats.buildRequires_dependents.grep {
+                                    !(packageStats[it].requires_dependents || packageStats[it].buildRequires_dependents)
+                                }
+
+                                if (build_dependent_leaves) {
+                                    build_target_of_leaf_count += 1
+                                    build_dependent_leaf_count += stats.buildRequires_dependents.size()
+                                }
+
+                                td {
+                                    if (stats.package_id != stats.subpackage_id) {
+                                        span(stats.subpackage_id)
+                                        span(' ')
+                                    }
+                                    a(href:href_package(stats.package_id), stats.package_id)
+                                }
+                                td { span(stats.build_section_line_count) }
+//                                td { span(stats.requires.size()) }
+                                td { span(stats.requires.sort().join(', ')) }
+//                                td { span(stats.buildRequires.size()) }
+                                td { span(stats.buildRequires.sort().join(', ')) }
+                                td { span(stats.requires_dependents.sort().join(', ')) }
+                                td { span(stats.buildRequires_dependents.sort().join(', ')) }
+                            }
+                        }
+                    }
+                    h2 "${packages_with_build_section} packages with BUILD scripts in ${topLevelPackages.size()} top-level packages"
+                    p "Average script line count is ${total_build_section_line_count/packages_with_build_section}"
+                    p "leaf_count $leaf_count"
+                    p "internal_count $internal_count"
+                    p "internal_dependents_count $internal_dependents_count"
+                    p "avg internal_dependents_count ${internal_dependents_count/internal_count}"
+
+                    p "build_target_of_leaf_count $build_target_of_leaf_count"
+                    p "build_dependent_leaf_count $build_dependent_leaf_count"
+                    p "avg build_dependent_leaf_count ${build_dependent_leaf_count/build_target_of_leaf_count}"
                 }
             }
         }
@@ -111,8 +311,8 @@ BODY, body { margin: 2em } /* or any other first level tag */
 P, p { display: block } /* or any other paragraph tag */
 /* ANNIE tags but you can use whatever tags you want */
 /* be careful that XML tags are case sensitive */
-Sentence  { background-color: rgb(150, 230, 150) ; border-spacing:1px 1px; border-style: none solid none solid }
-Token     { background-color: rgb(230, 150, 230) ; border: 1px solid red /* border-spacing:1px 1px; border-style: none dotted none dotted */ }
+Sentence  { background-color: rgb(220, 240, 220) ; border-spacing:1px 1px; border-style: none solid none solid }
+Token     { background-color: rgb(220, 220, 240) ; border: 1px solid blue /* border-spacing:1px 1px; border-style: none dotted none dotted */ }
 nounchunk     { background-color: rgb(230, 150, 230) }
 Date         { background-color: rgb(230, 150, 150) }
 FirstPerson  { background-color: rgb(150, 230, 150) }
@@ -153,9 +353,8 @@ get("/package/:package_id")
         def package_id = urlparams.package_id
         def package_doc = retriever.package_doc(package_id)
 
-        def spec_file_path = package_doc.get('package.spec_expanded')
         def description_field = RPM_SPEC.Section.DESCRIPTION.token
-        def spec = retriever.parse_spec_file(spec_file_path)
+        def spec = retriever.spec_for_package(package_id, true)
         def package_fields = spec['']
 
         def section = RPM_SPEC.token_to_section[description_field]
@@ -255,7 +454,7 @@ get("/package/:package_id")
                                 td(doc.get('file.shebang'))
                                 td(doc.get('file.name'))
                                 td(doc.get('file.size'))
-                                td(text_alignment(description, new File(doc.get('file.path')).text).score)
+                                td(/*text_alignment(description, new File(doc.get('file.path')).text).score*/ '')
                                 td {
                                     a(href:link, doc.get('file.build_path'))
                                 }
@@ -325,7 +524,7 @@ get("/showspec")
 {
     def package_id = params.package_id
     def spec_file_path = params.spec_file_path
-    def spec = retriever.parse_spec_file(spec_file_path)
+    def spec = retriever.parse_spec_file(new File(spec_file_path))
     if (spec) {
         new StreamingMarkupBuilder().bind {
             html {
@@ -374,7 +573,7 @@ get("/search")
     def search_field = params.field
     def slop = (params.slop ?: "0") as int
 
-    def spec = retriever.parse_spec_file(spec_file_path)
+    def spec = retriever.parse_spec_file(new File(spec_file_path))
     def package_fields = spec['']
 
 //    println "[$search_field]"
